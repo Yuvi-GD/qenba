@@ -1,0 +1,91 @@
+# ==============================================================================
+# Qenba Browser .gitignore
+# ==============================================================================
+
+# --- CMake / Build Outputs ---
+/build/
+/out/
+/bin/
+/lib/
+CMakeCache.txt
+CMakeFiles/
+CMakeSettings.json
+CMakePresets.json
+/CMakePresets.json
+CTestTestfile.cmake
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+.cmake/
+
+# --- MSVC / Visual Studio Artifacts ---
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.ncb
+*.sdf
+*.opensdf
+*.vcproj
+*.filters
+*.ipch
+*.aps
+*.db
+*.opendb
+*.VC.db
+*.VC.opendb
+
+# --- Compiler / Linker Intermediate & Output Files ---
+*.obj
+*.o
+*.gch
+*.pch
+*.lib
+*.a
+*.pdb
+*.idb
+*.ilk
+*.exp
+*.exe
+*.dll
+*.so
+*.dylib
+*.exp
+*.map
+
+# --- Slint Generated C++ Files & Cache ---
+# If Slint compiles .slint files to C++ headers dynamically, ignore them if placed in src
+src/ui/*.h
+# (UIManager.h and other custom headers are in src/ui, but they are NOT generated. 
+# Slint compiler output is typically in build/ or generated as app.h.
+# Just to be safe, build directory covers most generated files).
+
+# --- Qenba Runtime Configurations & Cache ---
+# The runtime config.json contains personal preferences/states.
+/config/config.json
+# Favicon download cache folder (custom protocol cache)
+/favicon_cache/
+*.log
+build_log.txt
+err.txt
+out.txt
+
+# --- VS Code Configurations ---
+.vscode/
+# Keep standard task/launch profiles if desired, but general .vscode/ is ignored.
+
+# --- OS Caches & Metadata ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Third-party Installer Junk ---
+# Ignore temporary plugins directory generated during Slint extraction/installation
+third_party/slint/\$PLUGINSDIR/
+third_party/slint/$PLUGINSDIR/
+**/$PLUGINSDIR/
+**/$PLUGINSDIR/**

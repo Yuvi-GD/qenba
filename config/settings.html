@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Qenba</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(20, 20, 20, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.6);
+            --accent: #4dabf7;
+            --accent-bg: rgba(77, 171, 247, 0.15);
+            --surface-hover: rgba(50, 50, 50, 0.6);
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            color: var(--text-main);
+            background-color: #0f1015;
+            display: flex;
+            overflow: hidden;
+            background-image: radial-gradient(circle at 15% 50%, rgba(20, 35, 60, 0.4), transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(60, 20, 40, 0.2), transparent 50%);
+        }
+
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 240px;
+            height: 100%;
+            padding: 1.5rem 0.8rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+            border-right: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        .logo {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent);
+            padding: 0 0.8rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            padding: 0.7rem 0.8rem;
+            border-radius: var(--radius-md);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        .nav-item i {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .nav-item:hover {
+            color: var(--text-main);
+            background: var(--surface-hover);
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+            background: var(--accent-bg);
+        }
+
+        .nav-version {
+            margin-top: auto;
+            color: rgba(255, 255, 255, 0.3);
+            text-align: center;
+            font-size: 0.72rem;
+            padding: 0.5rem;
+        }
+
+        /* ── Content ── */
+        .content {
+            flex: 1;
+            height: 100%;
+            overflow-y: auto;
+            padding: 2.5rem 3rem;
+        }
+
+        .content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .content::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        /* ── Panels ── */
+        .panel {
+            display: none;
+        }
+
+        .panel.active {
+            display: block;
+            animation: fadeIn 0.25s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .section-title {
+            font-size: 1.7rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .sub-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin: 1.5rem 0 0.6rem;
+        }
+
+        .settings-card {
+            border-radius: var(--radius-lg);
+            padding: 0 1.2rem;
+            margin-bottom: 1rem;
+            box-shadow: var(--glass-shadow);
+        }
+
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+            max-width: 70%;
+        }
+
+        .setting-title {
+            font-size: 0.92rem;
+            font-weight: 500;
+        }
+
+        .setting-desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        /* Toggles */
+        .toggle {
+            position: relative;
+            width: 42px;
+            height: 22px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            transition: var(--transition);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .toggle.on {
+            background: var(--accent);
+        }
+
+        .toggle.on::after {
+            transform: translateX(20px);
+        }
+
+        /* Select */
+        .select-box {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.5rem 0.8rem;
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .select-box option {
+            background: #1e1e1e;
+        }
+
+        /* Input */
+        .text-input {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--glass-border);
+            color: white;
+            padding: 0.5rem 0.8rem;
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+            width: 240px;
+            transition: border-color 0.2s;
+        }
+
+        .text-input:focus {
+            border-color: var(--accent);
+            user-select: text;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Sidebar -->
+    <div class="sidebar glass">
+        <div class="logo"><i class="ph-fill ph-gear"></i> Settings</div>
+
+        <div class="nav-item active" data-panel="appearance">
+            <i class="ph ph-paint-brush"></i> Appearance
+        </div>
+        <div class="nav-item" data-panel="search">
+            <i class="ph ph-magnifying-glass"></i> Search engine
+        </div>
+        <div class="nav-item" data-panel="startup">
+            <i class="ph ph-house"></i> On startup
+        </div>
+        <div class="nav-item" data-panel="privacy">
+            <i class="ph ph-shield-check"></i> Privacy &amp; security
+        </div>
+        <div class="nav-item" data-panel="system">
+            <i class="ph ph-hard-drives"></i> System
+        </div>
+        <div class="nav-version">Qenba Browser Base v1.0</div>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+
+        <!-- APPEARANCE panel -->
+        <div class="panel active" id="panel-appearance">
+            <h1 class="section-title">Appearance</h1>
+
+            <div class="sub-title">Theme</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Device theme</div>
+                        <div class="setting-desc">Adapt Qenba to your OS color scheme.</div>
+                    </div>
+                    <select class="select-box" id="sel-theme" onchange="persist('theme', this.value)">
+                        <option value="dark">Dark</option>
+                        <option value="system">System default</option>
+                        <option value="light">Light</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sub-title">Toolbar</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Show Home button</div>
+                        <div class="setting-desc">Display the home icon in the main toolbar.</div>
+                    </div>
+                    <div class="toggle on" id="toggle-home" onclick="toggleSetting('show_home_button', this)"></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Show bookmarks bar</div>
+                        <div class="setting-desc">Always show the favorites bar below the address bar.</div>
+                    </div>
+                    <div class="toggle" id="toggle-bookmarks" onclick="toggleSetting('show_bookmarks', this)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SEARCH panel -->
+        <div class="panel" id="panel-search">
+            <h1 class="section-title">Search &amp; AI</h1>
+
+            <div class="sub-title">Default search engine</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Search engine used in the address bar</div>
+                        <div class="setting-desc">Search queries typed in the address bar will use this engine.</div>
+                    </div>
+                    <select class="select-box" id="sel-engine" onchange="persist('search_engine', this.value)">
+                        <option value="duckduckgo">DuckDuckGo</option>
+                        <option value="google">Google</option>
+                        <option value="bing">Bing</option>
+                        <option value="brave">Brave Search</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="sub-title">AI Assistant</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Default AI Chat</div>
+                        <div class="setting-desc">Select the AI assistant to open when clicking the AI button in address
+                            bar.</div>
+                    </div>
+                    <select class="select-box" id="sel-ai" onchange="persist('ai_engine', this.value)">
+                        <option value="duck">Duck AI</option>
+                        <option value="gemini">Google Gemini</option>
+                        <option value="claude">Claude</option>
+                        <option value="perplexity">Perplexity</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- STARTUP panel -->
+        <div class="panel" id="panel-startup">
+            <h1 class="section-title">On startup</h1>
+
+            <div class="sub-title">Home page</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Dynamic wallpaper on new tab</div>
+                        <div class="setting-desc">Enable beautiful animated wallpapers on the start page.</div>
+                    </div>
+                    <div class="toggle on" id="toggle-wallpaper" onclick="toggleSetting('dynamic_wallpaper', this)">
+                    </div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Custom home URL</div>
+                        <div class="setting-desc">Override the default new tab page with a custom URL.</div>
+                    </div>
+                    <input class="text-input" id="inp-homeurl" type="text" placeholder="qenba://home"
+                        onblur="persist('home_url', this.value)">
+                </div>
+            </div>
+        </div>
+
+        <!-- PRIVACY panel -->
+        <div class="panel" id="panel-privacy">
+            <h1 class="section-title">Privacy &amp; security</h1>
+            <div class="sub-title">Browsing data</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Clear history on exit</div>
+                        <div class="setting-desc">Automatically clear browsing history when the window is closed.</div>
+                    </div>
+                    <div class="toggle" onclick="this.classList.toggle('on')"></div>
+                </div>
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Do Not Track</div>
+                        <div class="setting-desc">Request sites to not track your browsing activity.</div>
+                    </div>
+                    <div class="toggle" onclick="this.classList.toggle('on')"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SYSTEM panel -->
+        <div class="panel" id="panel-system">
+            <h1 class="section-title">System</h1>
+            <div class="sub-title">Performance</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Hardware acceleration</div>
+                        <div class="setting-desc">Use GPU for faster rendering when available.</div>
+                    </div>
+                    <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+                </div>
+            </div>
+            <div class="sub-title">About</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Qenba Engine</div>
+                        <div class="setting-desc">Base v1.0 — Powered by WebView2 &amp; SDL3</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ── Sidebar navigation ────────────────────────────────────────────────────
+        const navItems = document.querySelectorAll('.nav-item[data-panel]');
+        const panels = document.querySelectorAll('.panel');
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                navItems.forEach(n => n.classList.remove('active'));
+                panels.forEach(p => p.classList.remove('active'));
+                item.classList.add('active');
+                const target = document.getElementById('panel-' + item.dataset.panel);
+                if (target) target.classList.add('active');
+            });
+        });
+
+        // ── Helpers ────────────────────────────────────────────────────────────────
+        function toggleSetting(key, el) {
+            el.classList.toggle('on');
+            persist(key, el.classList.contains('on'));
+        }
+
+        function persist(key, value) {
+            if (window.updateConfig) {
+                window.updateConfig([key, value]);
+            }
+        }
+
+        // ── Signal the browser bar with correct title/url ─────────────────────────
+        window.addEventListener('load', () => {
+            if (window.onStateUpdate) {
+                window.onStateUpdate(
+                    encodeURIComponent('Settings'),
+                    encodeURIComponent('qenba://settings'),
+                    true, true,
+                    encodeURIComponent('https://www.google.com/s2/favicons?domain=settings&sz=32') // placeholder icon
+                );
+            }
+
+            // Sync with backend on load
+            if (window.getConfig) {
+                window.getConfig().then(cfgStr => {
+                    if (!cfgStr) return;
+                    try {
+                        let config = JSON.parse(cfgStr);
+                        if (config.theme) document.getElementById('sel-theme').value = config.theme;
+                        if (config.ai_engine) document.getElementById('sel-ai').value = config.ai_engine;
+                        if (config.home_url) document.getElementById('inp-homeurl').value = config.home_url;
+                        if (config.show_home_button) document.getElementById('toggle-home').classList.add('on');
+                        else document.getElementById('toggle-home').classList.remove('on');
+
+                        // Bookmarks is not in backend yet, handled via visual mockup toggle
+                    } catch (e) { }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,397 @@
+// ─── Sidebar.slint ────────────────────────────────────────────────────────────
+// Contains BOTH the right pinned-apps bar AND the side panel (header + resize grip).
+// Import this file in app.slint to get both components.
+
+// ── Path-drawn control buttons ────────────────────────────────────────────────
+component BackBtn inherits Rectangle {
+    callback clicked();
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: t.has-hover ? #2a2a2a : transparent;
+    animate background { duration: 80ms; }
+    Path {
+        x: 8px;
+        y: 9px;
+        width: 12px;
+        height: 10px;
+        stroke: t.has-hover ? #d4d4d4 : #6b7280;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 10 0 L 2 5 L 10 10 M 2 5 L 12 5";
+    }
+
+    t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component RefreshBtn inherits Rectangle {
+    callback clicked();
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: t.has-hover ? #2a2a2a : transparent;
+    animate background { duration: 80ms; }
+    Path {
+        x: 7px;
+        y: 7px;
+        width: 14px;
+        height: 14px;
+        stroke: t.has-hover ? #d4d4d4 : #6b7280;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 12 2 A 6 6 0 1 1 2 9 M 12 2 L 9 0 M 12 2 L 14 5";
+    }
+
+    t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component CloseBtn inherits Rectangle {
+    callback clicked();
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: t.has-hover ? #3a1818 : transparent;
+    animate background { duration: 80ms; }
+    Path {
+        x: 8px;
+        y: 8px;
+        width: 12px;
+        height: 12px;
+        stroke: t.has-hover ? #f87171 : #6b7280;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 0 0 L 12 12 M 12 0 L 0 12";
+    }
+
+    t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component PinBtn inherits Rectangle {
+    in-out property <string> lbl;
+    in property <bool> active: false;
+    in property <image> favicon;
+    callback clicked();
+    callback right-clicked();
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    // Background and hover/active states
+    background: t.has-hover ? #252525 : (active ? #1a3a5c : transparent);
+    animate background { duration: 100ms; }
+    
+    // Icon container for better centering control
+    Rectangle {
+        width: 22px;
+        height: 22px;
+        // background-hover is enough; scale is not supported on Rectangle yet
+        if root.favicon.width > 0: Image {
+            source: root.favicon;
+            width: 100%;
+            height: 100%;
+            image-fit: contain;
+        }
+        if root.favicon.width == 0: Text {
+            text: root.lbl;
+            font-size: 13px;
+            color: root.active ? #4dabf7 : (t.has-hover ? #c8c8c8 : #6b7280);
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    t := TouchArea {
+        pointer-event(evt) => {
+            if (evt.button == PointerEventButton.left && evt.kind == PointerEventKind.up) {
+                root.clicked();
+            } else if (evt.button == PointerEventButton.right && evt.kind == PointerEventKind.up) {
+                root.right-clicked();
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SIDE PANEL — header + resize grip + webview slot
+//  Place this inside HorizontalLayout with:  width: panel-w
+// ══════════════════════════════════════════════════════════════════════════════
+export component SidePanel inherits Rectangle {
+    // State
+    in property <string> panel-title: "Side Panel";
+    in property <string> panel-domain: "";
+    in property <image> panel-favicon;
+    in property <bool> is-resizing: false;
+
+    // Actions
+    callback on-back();
+    callback on-refresh();
+    callback on-close();
+    callback on-resize-start();
+    callback on-resize-move(length);  // emits new panel width
+
+    clip: true;
+
+    // ── Header ──────────────────────────────────────────────────────────────
+    Rectangle {
+        x: 8px;
+        y: 0px;                         // 8px inset for grip
+        width: root.width - 8px;
+        height: 44px;
+        background: #1c1c1c;
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 6px;
+            spacing: 12px;
+            
+            // Centering helper: since we aren't using a Box, we manually offset the y
+            // of the favicon and text so they align to the 44px vertical center.
+
+            // ── Favicon ──────────────────────────────────────────────
+            Rectangle {
+                y: (44px - 24px) / 2;
+                width: 24px;
+                height: 24px;
+                border-radius: 6px;
+                background: #1e3a5c;
+                clip: true;
+                if root.panel-favicon.width == 0: Text {
+                    text: root.panel-title != "" ? root.panel-title : "?";
+                    color: #4dabf7;
+                    font-size: 11px;
+                    font-weight: 700;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                if root.panel-favicon.width > 0: Image {
+                    source: root.panel-favicon;
+                    width: 100%;
+                    height: 100%;
+                    image-fit: cover;
+                }
+            }
+
+            // ── Title + domain ────────────────────────────────────────
+            VerticalLayout {
+                y: 0px;
+                height: 44px;
+                alignment: center;
+                spacing: 1px;
+                Text {
+                    text: root.panel-title != "" ? root.panel-title : "Side Panel";
+                    color: #e0e0e0;
+                    font-size: 13px;
+                    font-weight: 600;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+
+                if root.panel-domain != "": Text {
+                    text: root.panel-domain;
+                    color: #6b7280;
+                    font-size: 10px;
+                    overflow: elide;
+                    vertical-alignment: center;
+                }
+            }
+
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+
+            // ── Buttons ──────────────────────────────────────────────
+            HorizontalLayout {
+                y: (44px - 28px) / 2;
+                height: 28px;
+                // No alignment needed here; the parent HorizontalLayout + spacer pins it to the right
+                spacing: 2px;
+                BackBtn {
+                    clicked => {
+                        root.on-back();
+                    }
+                }
+
+                RefreshBtn {
+                    clicked => {
+                        root.on-refresh();
+                    }
+                }
+
+                CloseBtn {
+                    clicked => {
+                        root.on-close();
+                    }
+                }
+            }
+        }
+
+        // Bottom separator
+        Rectangle {
+            y: 43px;
+            height: 1px;
+            width: 100%;
+            background: #2a2a2a;
+        }
+    }
+
+    // ── Webview slot (native HWND fills this — tracked by Timer) ────────────
+    Rectangle {
+        x: 8px;
+        y: 44px;
+        width: root.width - 8px;
+        height: root.height - 44px;
+        background: #141414;
+    }
+
+    // ── Full-height resize grip (left 8px strip) ─────────────────────────────
+    // Handles its own drag via absolute-position math — no overlay needed.
+    grip-box := Rectangle {
+        x: 0px;
+        y: 0px;
+        width: 8px;
+        height: 100%;
+        background: grip-t.has-hover || root.is-resizing ? #4dabf7 : #1e3050;
+        animate background { duration: 100ms; }
+        Text {
+            text: "⋮";
+            color: grip-t.has-hover || root.is-resizing ? #fff : #4dabf7;
+            font-size: 9px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        grip-t := TouchArea {
+            mouse-cursor: ew-resize;
+            pointer-event(evt) => {
+                if (evt.kind == PointerEventKind.down) {
+                    root.on-resize-start();
+                }
+                if (evt.kind == PointerEventKind.up) {
+                    root.on-resize-start();
+                } // signal up so parent resets is-resizing
+            }
+            moved => {
+                if (root.is-resizing) {
+                    root.on-resize-move(grip-box.absolute-position.x + self.mouse-x);
+                }
+            }
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  SIDEBAR BAR — 44px right strip with search + pinned apps + pin-current
+// ══════════════════════════════════════════════════════════════════════════════
+export struct PinnedApp { title: string, url: string, icon: string, favicon: image}
+
+export component SidebarBar inherits Rectangle {
+    // State
+    in property <[PinnedApp]> apps;
+    in property <bool> sidebar-open: false;
+    in property <string> active-url: "";
+
+    // Actions
+    callback search-toggled();
+    callback app-toggled(string);   // url
+    callback app-removed(string);
+    callback pin-current();
+    width: 44px;
+    background: #1a1a1a;
+    // Left border
+    Rectangle {
+        x: 0px;
+        width: 1px;
+        height: 100%;
+        background: #2a2a2a;
+    }
+
+    VerticalLayout {
+        padding: 6px;
+        spacing: 4px;
+        alignment: start;
+
+        // ── Search icon (magnifying glass path) ─────────────────────────────
+        Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: srch.has-hover ? #252525 : (root.sidebar-open && root.active-url == "search" ? #1a3a5c : transparent);
+            animate background { duration: 100ms; }
+            Path {
+                x: 9px;
+                y: 9px;
+                width: 18px;
+                height: 18px;
+                stroke: (root.sidebar-open && root.active-url == "search") ? #4dabf7 : (srch.has-hover ? #c8c8c8 : #6b7280);
+                stroke-width: 1.5px;
+                fill: transparent;
+                commands: "M 12 7 A 5 5 0 1 1 7 12 M 10.5 10.5 L 16 16";
+            }
+
+            srch := TouchArea {
+                clicked => {
+                    root.search-toggled();
+                }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            width: 28px;
+            background: #2a2a2a;
+        }
+
+        // ── Pinned apps ──────────────────────────────────────────────────────
+        for app[i] in root.apps: PinBtn {
+            lbl: app.icon != "" ? app.icon : "W";
+            favicon: app.favicon;
+            active: root.sidebar-open && root.active-url == app.url;
+            clicked => {
+                root.app-toggled(app.url);
+            }
+            right-clicked => {
+                root.app-removed(app.url);
+            }
+        }
+        Rectangle {
+            height: 1px;
+            width: 28px;
+            background: #2a2a2a;
+        }
+
+        // ── Pin current tab (pushpin path icon) ──────────────────────────────
+        Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: pin.has-hover ? #252525 : transparent;
+            animate background { duration: 100ms; }
+            Path {
+                x: 11px;
+                y: 6px;
+                width: 14px;
+                height: 22px;
+                stroke: pin.has-hover ? #c8c8c8 : #6b7280;
+                stroke-width: 1.5px;
+                fill: transparent;
+                commands: "M 3 0 L 11 0 L 11 6 L 14 10 L 7 10 M 7 10 L 7 18 M 0 10 L 7 10 M 3 0 L 3 6 L 0 10";
+            }
+
+            pin := TouchArea {
+                clicked => {
+                    root.pin-current();
+                }
+            }
+        }
+    }
+}

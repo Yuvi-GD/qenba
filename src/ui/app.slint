@@ -1,0 +1,776 @@
+import { HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { SidePanel, SidebarBar, PinnedApp } from "Sidebar.slint";
+
+export struct TabData {
+    title: string,
+    url: string,
+    icon: string,
+    favicon: image}
+
+// ── Path-drawn nav buttons ─────────────────────────────────────────────────
+component NavBack inherits Rectangle {
+    in property <bool> on: true;
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: t.has-hover && on ? #2d2d2d : transparent;
+    animate background { duration: 100ms; }
+    Path {
+        x: 9px;
+        y: 10px;
+        width: 12px;
+        height: 10px;
+        opacity: on ? 1.0 : 0.3;
+        stroke: on ? (t.has-hover ? #e0e0e0 : #888) : #555;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 10 0 L 2 5 L 10 10 M 2 5 L 12 5";
+    }
+
+    t := TouchArea {
+        clicked => {
+            if (on) {
+                root.clicked();
+            }
+        }
+    }
+}
+
+component NavFwd inherits Rectangle {
+    in property <bool> on: true;
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: t.has-hover && on ? #2d2d2d : transparent;
+    animate background { duration: 100ms; }
+    Path {
+        x: 9px;
+        y: 10px;
+        width: 12px;
+        height: 10px;
+        opacity: on ? 1.0 : 0.3;
+        stroke: on ? (t.has-hover ? #e0e0e0 : #888) : #555;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 2 0 L 10 5 L 2 10 M 10 5 L 0 5";
+    }
+
+    t := TouchArea {
+        clicked => {
+            if (on) {
+                root.clicked();
+            }
+        }
+    }
+}
+
+component NavReload inherits Rectangle {
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: t.has-hover ? #2d2d2d : transparent;
+    animate background { duration: 100ms; }
+    Path {
+        x: 8px;
+        y: 8px;
+        width: 14px;
+        height: 14px;
+        stroke: t.has-hover ? #e0e0e0 : #888;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 12 2 A 6 6 0 1 1 2 9 M 12 2 L 9 0 M 12 2 L 14 5";
+    }
+
+    t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component NavHome inherits Rectangle {
+    callback clicked();
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    background: t.has-hover ? #2d2d2d : transparent;
+    animate background { duration: 100ms; }
+    Path {
+        x: 7px;
+        y: 5px;
+        width: 16px;
+        height: 16px;
+        stroke: t.has-hover ? #e0e0e0 : #888;
+        stroke-width: 1.5px;
+        fill: transparent;
+        commands: "M 0 8 L 8 0 L 16 8 M 3 8 L 3 16 L 13 16 L 13 8";
+    }
+
+    t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    title: root.initialized ? (root.tabs[root.active-tab].title != "" ? root.tabs[root.active-tab].title : "Qenba") : "QENBA_INIT_MODE";
+    in-out property <bool> initialized: false;
+    preferred-width: 1000px;
+    preferred-height: 650px;
+    no-frame: true;
+    background: #141414;
+    in-out property <[TabData]> tabs: [
+        { title: "New Tab", url: "https://duckduckgo.com", icon: "D", favicon: @image-url("") }
+    ];
+    in-out property <int> active-tab: 0;
+    in-out property <string> url: "https://duckduckgo.com";
+    out property <bool> addr-focused: addr.has-focus;
+    in-out property <bool> is-secure: true;
+    in-out property <[PinnedApp]> pinned-apps: [];
+    in-out property <bool> sidebar-open: false;
+    in-out property <string> sidebar-title: "";
+    in-out property <string> sidebar-url: "";
+    in-out property <string> active-sidebar-url: "";
+    in-out property <bool> sidebar-overlay: false;
+    in-out property <image> sidebar-favicon;
+    in-out property <length> sb-panel-w: 320px;
+    in-out property <bool> is-resizing: false;
+    in-out property <bool> can-go-back: false;
+    in-out property <bool> can-go-forward: false;
+    in-out property <bool> show-home-button: true;
+    in-out property <string> config-theme: "dark";
+    callback close-window();
+    callback minimize-window();
+    callback maximize-window();
+    callback window-move(length, length);
+    callback window-resize(length, length);
+    callback load-url(string);
+    callback go-back();
+    callback go-forward();
+    callback go-home();
+    callback show-profile();
+    callback tab-clicked(int);
+    callback new-tab();
+    callback close-tab(int);
+    callback sync-geometry(length, length, length, length);
+    callback refresh();
+    callback clear-addr-focus();
+    callback sidebar-pin-current();
+    callback sidebar-navigate(string);
+    callback sidebar-remove-app(string);
+    callback sidebar-back();
+    callback sidebar-refresh();
+    callback sidebar-close();
+    callback toggle-ai-chat();
+    callback app-toggled(string);
+    callback sync-sidebar-geometry(length, length, length, length);
+    dummy_focus := FocusScope {
+        width: 0;
+        height: 0;
+    }
+
+    clear-addr-focus => {
+        dummy_focus.focus();
+    }
+    
+    // Logic for search panel toggle
+    app-toggled(url) => {
+        if (root.sidebar-open && root.active-sidebar-url == url) {
+            root.sidebar-close();
+            root.active-sidebar-url = "";
+        } else {
+            root.sidebar-open = true;
+            root.active-sidebar-url = url;
+            root.sidebar-navigate(url);
+        }
+    }
+    property <length> area-x: webview-area.absolute-position.x;
+    property <length> area-y: webview-area.absolute-position.y;
+    property <length> area-w: webview-area.width - 2px;
+    property <length> area-h: webview-area.height - 2px;
+    Timer {
+        interval: 16ms;
+        running: true;
+        triggered => {
+            root.sync-geometry(root.area-x, root.area-y, root.area-w, root.area-h);
+            if (root.sidebar-open) {
+                // Panel header = 44px, titlebar = 36px, navbar = 44px → y = 124px
+                // x starts 8px inside panel (past the grip)
+                root.sync-sidebar-geometry(
+                    root.area-x + root.area-w + 10px,
+                    124px,
+                    root.sb-panel-w - 12px,
+                    root.height - 124px - 2px);
+            }
+        }
+    }
+
+    // Fixed-position layout: avoids binding loops in frameless windows
+    // TitleBar at y:0, NavBar at y:36, Body at y:80
+
+    // ══ TITLE BAR   36px ══════════════════════════════════════════════════
+    Rectangle {
+        y: 0;
+        height: 36px;
+        width: root.width;
+        background: #1a1a1a;
+        TouchArea {
+            width: 100%;
+            height: 100%;
+        }    // window drag handled by OS subclass
+        HorizontalLayout {
+            // Left side balanced to match the right side (132px) for perfect centering
+            Rectangle {
+                width: 132px;
+                HorizontalLayout {
+                    padding-left: 14px;
+                    Text {
+                        text: "Qenba";
+                        font-weight: 700;
+                        font-size: 12px;
+                        color: #4dabf7;
+                        letter-spacing: 0.5px;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            // Centered Title Group (Segment 2)
+            HorizontalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                
+                // Container for Title + Favicon
+                HorizontalLayout {
+                    padding: 0px;
+                    spacing: 5px;
+                    y: 10px;
+                    alignment: LayoutAlignment.center;
+                    max-height: 0px;
+                    if root.tabs[root.active-tab].favicon.width >= 0: Image {
+                        source: root.tabs[root.active-tab].favicon;
+                        width: 16px;
+                        z: 0;
+                        height: 16px;
+                        horizontal-alignment: ImageHorizontalAlignment.left;
+                        vertical-alignment: ImageVerticalAlignment.top;
+                        image-fit: ImageFit.contain;
+                    }
+                    Text {
+                        text: root.tabs[root.active-tab].title != "" ? root.tabs[root.active-tab].title : "New Tab";
+                        font-size: 13px;
+                        color: #f0f0f0;
+                        vertical-alignment: TextVerticalAlignment.top;
+                        y: 0px;
+                        z: 0;
+                        horizontal-alignment: TextHorizontalAlignment.left;
+                        overflow: elide;
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                width: 132px;
+                height: 36px;
+                Rectangle {
+                    width: 44px;
+                    height: 36px;
+                    background: wmin.has-hover ? #252525 : transparent;
+                    animate background { duration: 80ms; }
+                    Rectangle {
+                        width: 10px;
+                        height: 1px;
+                        x: 17px;
+                        y: 18px;
+                        background: wmin.has-hover ? #ddd : #666;
+                    }
+
+                    wmin := TouchArea {
+                        clicked => {
+                            root.minimize-window();
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 44px;
+                    height: 36px;
+                    background: wmax.has-hover ? #252525 : transparent;
+                    animate background { duration: 80ms; }
+                    Rectangle {
+                        width: 10px;
+                        height: 10px;
+                        x: 17px;
+                        y: 13px;
+                        border-width: 1px;
+                        border-color: wmax.has-hover ? #ddd : #666;
+                        background: transparent;
+                    }
+
+                    wmax := TouchArea {
+                        clicked => {
+                            root.maximize-window();
+                        }
+                    }
+                }
+
+                Rectangle {
+                    width: 44px;
+                    height: 36px;
+                    background: wcls.has-hover ? #c42b1c : transparent;
+                    animate background { duration: 80ms; }
+                    Path {
+                        x: 17px;
+                        y: 13px;
+                        width: 10px;
+                        height: 10px;
+                        stroke: wcls.has-hover ? #fff : #666;
+                        stroke-width: 1.1px;
+                        commands: "M 0 0 L 10 10 M 10 0 L 0 10";
+                    }
+
+                    wcls := TouchArea {
+                        clicked => {
+                            root.close-window();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ══ NAVIGATION BAR   44px ════════════════════════════════════════════
+    Rectangle {
+        y: 36px;
+        height: 44px;
+        width: root.width;
+        background: #1e1e1e;
+        Rectangle {
+            y: 43px;
+            height: 1px;
+            width: 100%;
+            background: #272727;
+        }
+
+        HorizontalLayout {
+            padding-left: 10px;
+            padding-right: 10px;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            spacing: 4px;
+            NavBack {
+                on: root.can-go-back;
+                clicked => {
+                    root.go-back();
+                }
+            }
+
+            NavFwd {
+                on: root.can-go-forward;
+                clicked => {
+                    root.go-forward();
+                }
+            }
+
+            NavReload {
+                clicked => {
+                    root.refresh();
+                }
+            }
+
+            if root.show-home-button: NavHome {
+                clicked => {
+                    root.go-home();
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                height: 30px;
+                background: addr.has-focus ? #252525 : #1a1a1a;
+                border-radius: 15px;
+                border-width: 1px;
+                border-color: addr.has-focus ? #4dabf7 : #333;
+                animate background { duration: 100ms; }
+                animate border-color { duration: 100ms; }
+                HorizontalLayout {
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    spacing: 8px;
+                    
+                    // Status Icon (Lock for HTTPS, Alert for HTTP)
+                    Rectangle {
+                        width: 14px;
+                        height: 14px;
+                        y: (parent.height - self.height) / 2;
+                        Path {
+                            width: 100%;
+                            height: 100%;
+                            stroke: root.is-secure ? #888 : #ffaa00;
+                            stroke-width: 1.5px;
+                            fill: transparent;
+                            commands: root.is-secure ? "M 3 6 L 3 4 A 4 4 0 0 1 11 4 L 11 6 M 2 6 L 12 6 L 12 13 L 2 13 Z" : "M 7 1 L 1 13 L 13 13 Z M 7 4 L 7 9 M 7 11 L 7 11.5";
+                        }
+                    }
+
+                    addr := TextInput {
+                        font-size: 13px;
+                        color: #d4d4d4;
+                        vertical-alignment: center;
+                        single-line: true;
+                        text: root.url;
+                        edited => {
+                            root.url = self.text;
+                        }
+                        accepted => {
+                            root.load-url(self.text);
+                            dummy_focus.focus();
+                        }
+                    }
+
+                    // Mask click to ensure focus is always grabbed
+                    TouchArea {
+                        width: 100%;
+                        height: 100%;
+                        pointer-event(evt) => {
+                            if (evt.kind == PointerEventKind.down) {
+                                addr.focus();
+                            }
+                        }
+                    }
+
+                    // Bookmark Star Icon
+                    Rectangle {
+                        width: 16px;
+                        height: 16px;
+                        y: (parent.height - self.height) / 2;
+                        star_ta := TouchArea { }
+
+                        Path {
+                            width: 100%;
+                            height: 100%;
+                            stroke: star_ta.has-hover ? #e0e0e0 : #888;
+                            stroke-width: 1.5px;
+                            fill: transparent;
+                            commands: "M 8 1 L 10 5 L 14 6 L 11 9 L 12 14 L 8 11 L 4 14 L 5 9 L 2 6 L 6 5 Z";
+                        }
+                    }
+                }
+            }
+
+            // Download Icon
+            Rectangle {
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                background: dl_ta.has-hover ? #2d2d2d : transparent;
+                animate background { duration: 100ms; }
+                Path {
+                    x: 8px;
+                    y: 8px;
+                    width: 14px;
+                    height: 14px;
+                    stroke: dl_ta.has-hover ? #e0e0e0 : #888;
+                    stroke-width: 1.5px;
+                    fill: transparent;
+                    commands: "M 7 1 L 7 10 M 4 7 L 7 10 L 10 7 M 2 13 L 12 13";
+                }
+
+                dl_ta := TouchArea { }
+            }
+
+            Rectangle {
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                background: pt.has-hover ? #2d2d2d : transparent;
+                Rectangle {
+                    x: 5px;
+                    y: 13px;
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: pt.has-hover ? #e0e0e0 : #888;
+                }
+
+                Rectangle {
+                    x: 13px;
+                    y: 13px;
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: pt.has-hover ? #e0e0e0 : #888;
+                }
+
+                Rectangle {
+                    x: 21px;
+                    y: 13px;
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: pt.has-hover ? #e0e0e0 : #888;
+                }
+
+                pt := TouchArea {
+                    clicked => {
+                        root.show-profile();
+                    }
+                }
+            }
+
+            // AI Chat Icon
+            Rectangle {
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                background: ai_ta.has-hover ? #2d2d2d : transparent;
+                animate background { duration: 100ms; }
+                Path {
+                    x: 4px;
+                    y: 4px;
+                    width: 22px;
+                    height: 22px;
+                    stroke: ai_ta.has-hover ? #e0e0e0 : #888;
+                    stroke-width: 1.5px;
+                    fill: transparent;
+                    commands: "M 2 2 L 12 2 L 12 10 L 8 10 L 5 13 L 5 10 L 2 10 Z M 5 5 L 5 6 M 9 5 L 9 6";
+                }
+
+                ai_ta := TouchArea {
+                    clicked => {
+                        root.toggle-ai-chat();
+                    }
+                }
+            }
+        }
+    }
+
+    // ══ BODY ═════════════════════════════════════════════════════════════
+    Rectangle {
+        y: 80px;
+        width: root.width;
+        height: max(0px, root.height - 80px);
+        background: #141414;
+        HorizontalLayout {
+            padding-left: 2px;
+            padding-right: 5px;
+            padding-bottom: 2px;
+            spacing: 0px;
+
+            // ── Left tab bar  42→180px animated ──────────────────────────
+            tab-bar := Rectangle {
+                width: tab-touch.has-hover ? 180px : 42px;
+                height: 100%;
+                background: #1a1a1a;
+                clip: true;
+                animate width {
+                    duration: 150ms;
+                    easing: ease-out;
+                }
+                Rectangle {
+                    x: tab-bar.width - 1px;
+                    width: 1px;
+                    height: 100%;
+                    background: #272727;
+                }
+
+                tab-touch := TouchArea {
+                    width: 100%;
+                    height: 100%;
+                    VerticalLayout {
+                        padding-top: 5px;
+                        padding-bottom: 5px;
+                        spacing: 3px;
+                        alignment: start;
+                        for tab[i] in root.tabs: Rectangle {
+                            height: 36px;
+                            clip: true;
+                            background: root.active-tab == i ? #1a3a5c : (tb.has-hover ? #222 : transparent);
+                            animate background { duration: 100ms; }
+                            tb := TouchArea {
+                                clicked => {
+                                    root.tab-clicked(i);
+                                }
+                            }
+
+                            // Icon area — explicitly 42px wide to anchor the collapsed state
+                            Rectangle {
+                                x: 0px;
+                                width: 42px;
+                                height: 36px;
+                                
+                                // Centered Icon Circle (Relative to the 42px container)
+                                Rectangle {
+                                    x: (parent.width - self.width) / 2;
+                                    y: (parent.height - self.height) / 2;
+                                    width: 24px;
+                                    height: 22px;
+                                    border-radius: 6px;
+                                    background: root.active-tab == i ? #4dabf7 : #252525;
+                                    clip: true;
+                                    if tab.favicon.width > 0: Image {
+                                        source: tab.favicon;
+                                        width: 100%;
+                                        height: 100%;
+                                        image-fit: contain;
+                                    }
+                                    if tab.favicon.width == 0: Text {
+                                        text: tab.icon != "" ? tab.icon : "B";
+                                        color: root.active-tab == i ? #0d1b2a : #6b7280;
+                                        font-size: 11px;
+                                        font-weight: 700;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                            }
+                            // Title — starts at x=40px, clipped by parent
+                            if tab-bar.width > 100px: Text {
+                                x: 40px;
+                                y: 0px;
+                                width: tab-bar.width - 66px;
+                                height: 36px;
+                                text: tab.title != "" ? tab.title : "New Tab";
+                                color: root.active-tab == i ? #e0e0e0 : #888;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                            // Close btn
+                            if tab-bar.width > 150px && root.tabs.length > 1: Rectangle {
+                                x: tab-bar.width - 28px;
+                                y: 9px;
+                                width: 18px;
+                                height: 18px;
+                                border-radius: 5px;
+                                background: cx.has-hover ? #3a1818 : transparent;
+                                cx := TouchArea {
+                                    clicked => {
+                                        root.close-tab(i);
+                                    }
+                                }
+
+                                Path {
+                                    x: 3px;
+                                    y: 3px;
+                                    width: 12px;
+                                    height: 12px;
+                                    stroke: cx.has-hover ? #f87171 : #555;
+                                    stroke-width: 1.3px;
+                                    fill: transparent;
+                                    commands: "M 0 0 L 12 12 M 12 0 L 0 12";
+                                }
+                            }
+                        }
+
+                        // New tab
+                        Rectangle {
+                            height: 36px;
+                            border-radius: 8px;
+                            clip: true;
+                            background: nbt.has-hover ? #222 : transparent;
+                            animate background { duration: 100ms; }
+                            nbt := TouchArea {
+                                clicked => {
+                                    root.new-tab();
+                                }
+                            }
+
+                            // Centered Icon Circle
+                            Rectangle {
+                                x: (42px - self.width) / 2;
+                                y: (36px - self.height) / 2;
+                                width: 24px;
+                                height: 22px;
+                                border-radius: 6px;
+                                background: nbt.has-hover ? #333 : #1e1e1e;
+                                Text {
+                                    text: "+";
+                                    color: #4dabf7;
+                                    font-size: 16px;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
+                                }
+                            }
+
+                            if tab-bar.width > 100px: Text {
+                                x: 40px;
+                                y: 0px;
+                                height: 36px;
+                                text: "New Tab";
+                                color: #4dabf7;
+                                font-size: 11px;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Main webview slot ──────────────────────────────────────
+            webview-area := Rectangle {
+                horizontal-stretch: 1;
+                background: #141414;
+            }
+
+            // ── Side panel (from Sidebar.slint) ───────────────────────
+            if root.sidebar-open: SidePanel {
+                width: root.sb-panel-w;
+                panel-title: root.sidebar-title;
+                panel-domain: root.sidebar-url;
+                panel-favicon: root.sidebar-favicon;
+                is-resizing: root.is-resizing;
+                on-back => {
+                    root.sidebar-back();
+                }
+                on-refresh => {
+                    root.sidebar-refresh();
+                }
+                on-close => {
+                    root.sidebar-close();
+                    root.active-sidebar-url = "";
+                }
+                // resize-start: down sets is-resizing=true, up sets it false
+                on-resize-start => {
+                    root.is-resizing = !root.is-resizing;
+                }
+                on-resize-move(abs-x) => {
+                    // abs-x = absolute window x of the mouse
+                    // panel_w = window_w - right_bar(44) - abs_x
+                    root.sb-panel-w = max(180px, min(root.width * 0.55,
+                        root.width - 44px - abs-x));
+                }
+            }
+
+            // ── Right sidebar bar (from Sidebar.slint) ────────────────
+            SidebarBar {
+                apps: root.pinned-apps;
+                sidebar-open: root.sidebar-open;
+                active-url: root.active-sidebar-url;
+                search-toggled => {
+                    if (root.sidebar-open && root.active-sidebar-url == "search") {
+                        root.sidebar-close();
+                        root.active-sidebar-url = "";
+                    } else {
+                        root.sidebar-url = "duckduckgo.com";
+                        root.active-sidebar-url = "search";
+                        root.sidebar-navigate("https://duckduckgo.com");
+                    }
+                }
+                // Connect the new exposed callback
+                app-toggled(url) => {
+                    root.app-toggled(url);
+                }
+                app-removed(url) => {
+                    root.sidebar-remove-app(url);
+                }
+                pin-current => {
+                    root.sidebar-pin-current();
+                }
+            }
+        }
+    }
+}

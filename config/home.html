@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Tab</title>
+    <!-- Premium Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons for elegant minimalist icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root {
+            --glass-bg: rgba(20, 20, 20, 0.35);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+            --text-main: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.7);
+            --accent: #ffffff;
+            --accent-bg: rgba(255, 255, 255, 0.2);
+            --radius-sm: 8px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-pill: 9999px;
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            color: var(--text-main);
+            background-color: #000;
+        }
+
+        /* Dynamic Wallpaper Background */
+        #bg-layer {
+            position: absolute;
+            top: -2%;
+            left: -2%;
+            width: 104%;
+            height: 104%;
+            background-size: cover;
+            background-position: center;
+            z-index: -2;
+            transition: opacity 1.5s ease-in-out;
+            opacity: 0;
+            animation: breathe 60s infinite alternate ease-in-out;
+        }
+
+        @keyframes breathe {
+            0% {
+                transform: scale(1);
+            }
+
+            100% {
+                transform: scale(1.05);
+            }
+        }
+
+        #bg-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 0%, rgba(0, 0, 0, 0.4) 100%);
+            z-index: -1;
+        }
+
+        /* Glassmorphism Helper */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
+        }
+
+        /* Top Bar */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 3rem;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+        }
+
+        .weather-widget {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 20px;
+            border-radius: var(--radius-pill);
+            font-size: 1rem;
+            font-weight: 500;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .weather-widget:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .weather-widget i {
+            font-size: 1.4rem;
+        }
+
+        /* Main Content */
+        main {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 0 2rem;
+            position: relative;
+            z-index: 5;
+        }
+
+        /* Clock */
+        .clock-container {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            text-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+        }
+
+        #time {
+            font-size: 8rem;
+            font-weight: 600;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        #date {
+            font-size: 1.4rem;
+            font-weight: 300;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Search Box */
+        .search-wrapper {
+            width: 100%;
+            max-width: 650px;
+            margin-bottom: 4rem;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            border-radius: var(--radius-pill);
+            padding: 8px 16px 8px 24px;
+            transition: var(--transition);
+            background: rgba(20, 20, 20, 0.4);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .search-box:focus-within {
+            background: rgba(40, 40, 40, 0.6);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            transform: translateY(-2px);
+        }
+
+        .search-box i {
+            font-size: 1.6rem;
+            color: var(--text-muted);
+        }
+
+        #search-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            padding: 12px 16px;
+        }
+
+        #search-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        /* App Bookmarks */
+        .bookmarks-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 2rem;
+            width: 100%;
+            max-width: 800px;
+            justify-content: center;
+        }
+
+        .bookmark-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem;
+            max-width: 800px;
+        }
+
+        .bookmark-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            cursor: pointer;
+            position: relative;
+            width: 90px;
+        }
+
+        .bm-icon-box {
+            width: 64px;
+            height: 64px;
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+
+        .bm-icon-box img {
+            width: 50%;
+            height: 50%;
+            object-fit: contain;
+            transition: var(--transition);
+        }
+
+        .bookmark-item:hover .bm-icon-box {
+            transform: translateY(-6px) scale(1.05);
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .bookmark-item:hover .bm-icon-box img {
+            transform: scale(1.1);
+        }
+
+        .bm-label {
+            font-size: 0.85rem;
+            font-weight: 400;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+            text-align: center;
+            opacity: 0.8;
+            transition: var(--transition);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 2px 8px;
+            border-radius: 12px;
+            backdrop-filter: blur(4px);
+        }
+
+        .bookmark-item:hover .bm-label {
+            opacity: 1;
+        }
+
+        /* Bookmark Actions (Edit/Delete) */
+        .bm-actions {
+            position: absolute;
+            top: -8px;
+            right: 0px;
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transform: translateY(5px);
+            transition: var(--transition);
+            z-index: 10;
+        }
+
+        .bookmark-item:hover .bm-actions {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .bm-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(40, 40, 40, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .bm-action-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Floating Controls (Bottom Right) */
+        .floating-controls {
+            position: absolute;
+            bottom: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+            z-index: 20;
+        }
+
+        .control-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: var(--transition);
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-3px) scale(1.05);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Side Panel (Tasks & Notes) */
+        .side-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(30px);
+            -webkit-backdrop-filter: blur(30px);
+            border-left: 1px solid var(--glass-border);
+            z-index: 100;
+            transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .side-panel.open {
+            transform: translateX(-400px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: 500;
+        }
+
+        .close-panel {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close-panel:hover {
+            opacity: 0.7;
+            transform: rotate(90deg);
+        }
+
+        /* Tasks styling */
+        .tasks-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+        }
+
+        .task-input-box {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+        }
+
+        .task-input-box input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: white;
+            outline: none;
+            font-family: inherit;
+        }
+
+        .task-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .task-check {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .task-check.completed {
+            background: white;
+            border-color: white;
+        }
+
+        .task-check.completed::after {
+            content: '';
+            width: 5px;
+            height: 10px;
+            border: solid black;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-bottom: 2px;
+        }
+
+        .task-text {
+            flex: 1;
+            font-size: 0.95rem;
+        }
+
+        .task-text.completed {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .task-delete {
+            opacity: 0;
+            cursor: pointer;
+            color: rgba(255, 255, 255, 0.5);
+            transition: var(--transition);
+        }
+
+        .task-item:hover .task-delete {
+            opacity: 1;
+        }
+
+        .task-delete:hover {
+            color: #ff4757;
+        }
+
+        /* Modals (Settings & Bookmarks) */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(8px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal {
+            background: rgba(30, 30, 30, 0.7);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem;
+            width: 100%;
+            max-width: 450px;
+            transform: translateY(20px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0) scale(1);
+        }
+
+        .modal h2 {
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .form-group select option {
+            background: #222;
+            color: white;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: var(--transition);
+        }
+
+        .btn-cancel {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-primary {
+            background: white;
+            color: black;
+        }
+
+        .btn-primary:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Dynamic Auto-changing Wallpaper -->
+    <div id="bg-layer"></div>
+    <div id="bg-overlay"></div>
+
+    <header>
+        <!-- Weather Widget dynamically filled by JS based on Geo IP -->
+        <div class="weather-widget glass" id="weather-widget">
+            <i class="ph ph-spinner-gap spin"></i> <span>Locating...</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="clock-container">
+            <div id="time">00:00</div>
+            <div id="date">Loading...</div>
+        </div>
+
+        <div class="search-wrapper">
+            <form id="search-form">
+                <div class="search-box">
+                    <i class="ph ph-magnifying-glass" id="search-icon"></i>
+                    <input type="text" id="search-input" placeholder="Search the web or type a URL..."
+                        autocomplete="off" autofocus>
+                </div>
+            </form>
+        </div>
+
+        <!-- App Bookmarks using High-Res Icons -->
+        <div class="bookmark-container" id="bookmarks-container">
+            <!-- Populated via JS -->
+        </div>
+    </main>
+
+    <!-- Floating Actions for Tasks & Settings -->
+    <div class="floating-controls">
+        <div class="control-btn" id="tasks-btn" title="Tasks & Notes">
+            <i class="ph ph-list-checks"></i>
+        </div>
+        <div class="control-btn" id="settings-btn" title="Page Settings">
+            <i class="ph ph-gear"></i>
+        </div>
+    </div>
+
+    <!-- Right Side Panel for Tasks -->
+    <div class="side-panel" id="side-panel">
+        <div class="panel-header">
+            <span>My Tasks</span>
+            <button class="close-panel" id="close-panel-btn"><i class="ph ph-x"></i></button>
+        </div>
+        <div class="tasks-container">
+            <form id="task-form">
+                <div class="task-input-box">
+                    <input type="text" id="task-input" placeholder="Add a new task..." autocomplete="off">
+                    <button type="submit" style="background:none;border:none;color:white;cursor:pointer;"><i
+                            class="ph ph-plus-circle" style="font-size:1.2rem;"></i></button>
+                </div>
+            </form>
+            <div id="tasks-list" style="display:flex;flex-direction:column;gap:10px;margin-top:10px;"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal">
+            <h2>Page Settings <button class="close-panel" id="close-settings-btn" style="font-size:1.2rem;"><i
+                        class="ph ph-x"></i></button></h2>
+
+            <div class="form-group">
+                <label>Search Provider</label>
+                <select id="setting-engine">
+                    <option value="google">Google</option>
+                    <option value="duckduckgo">DuckDuckGo</option>
+                    <option value="bing">Bing</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Wallpaper Category</label>
+                <select id="setting-wallpaper">
+                    <option value="random">Random Spectacular</option>
+                    <option value="nature">Nature & Landscapes</option>
+                    <option value="architecture">Architecture</option>
+                    <option value="space">Space & Sci-Fi</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Time Format</label>
+                <select id="setting-timeformat">
+                    <option value="24">24-Hour (14:30)</option>
+                    <option value="12">12-Hour (2:30 PM)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bookmark Edit Modal -->
+    <div class="modal-overlay" id="bm-modal">
+        <div class="modal">
+            <h2 id="bm-modal-title">Edit App</h2>
+            <form id="bm-form">
+                <input type="hidden" id="bm-index">
+                <div class="form-group">
+                    <label>App Name</label>
+                    <input type="text" id="bm-name" required placeholder="e.g. Netflix">
+                </div>
+                <div class="form-group">
+                    <label>App URL</label>
+                    <input type="url" id="bm-url" required placeholder="https://netflix.com">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" id="bm-cancel-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save App</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            /* =========================================================================
+               CONFIG & STATE
+               ========================================================================= */
+            // Load Settings
+            let config = JSON.parse(localStorage.getItem('nt_config')) || {
+                engine: 'google',
+                wallpaper: 'random',
+                timeformat: '24'
+            };
+
+            const engines = {
+                google: { url: 'https://www.google.com/search?q=', icon: 'ph-google-logo' },
+                duckduckgo: { url: 'https://duckduckgo.com/?q=', icon: 'ph-duck' },
+                bing: { url: 'https://www.bing.com/search?q=', icon: 'ph-microsoft-logo' }
+            };
+
+            // Preset high-quality Unsplash collections based on category
+            const wallpapers = {
+                random: [
+                    "https://images.unsplash.com/photo-1506744626753-1fa30f9a2656?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1511884642898-4c92249e20b6?q=80&w=2560"
+                ],
+                nature: [
+                    "https://images.unsplash.com/photo-1433086966358-54859d0ed716?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1470813740244-df37b8c1edcb?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1434725039720-aaad6dd32dfe?q=80&w=2560"
+                ],
+                architecture: [
+                    "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1479839672679-a46483c0e7c8?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1511818966892-d7d671e672a2?q=80&w=2560"
+                ],
+                space: [
+                    "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?q=80&w=2560",
+                    "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2560"
+                ]
+            };
+
+            // Default Apps
+            let bookmarks = JSON.parse(localStorage.getItem('nt_bookmarks')) || [
+                { name: 'YouTube', url: 'https://youtube.com' },
+                { name: 'GitHub', url: 'https://github.com' },
+                { name: 'Reddit', url: 'https://reddit.com' },
+                { name: 'X', url: 'https://x.com' },
+                { name: 'Netflix', url: 'https://netflix.com' }
+            ];
+
+            let tasks = JSON.parse(localStorage.getItem('nt_tasks')) || [];
+
+            /* =========================================================================
+               WALLPAPER SYSTEM
+               ========================================================================= */
+            function setWallpaper() {
+                const list = wallpapers[config.wallpaper] || wallpapers.random;
+                // Get deterministic random based on hour so it changes occasionally
+                const index = Math.floor(Math.random() * list.length);
+                const bgLayer = document.getElementById('bg-layer');
+
+                // Preload image for smooth transition
+                const img = new Image();
+                img.src = list[index];
+                img.onload = () => {
+                    bgLayer.style.backgroundImage = `url('${list[index]}')`;
+                    bgLayer.style.opacity = 1;
+                };
+            }
+            setWallpaper();
+
+            /* =========================================================================
+               WEATHER SYSTEM (GEO IP + OPEN METEO)
+               ========================================================================= */
+            async function loadWeather() {
+                const wxWidget = document.getElementById('weather-widget');
+                try {
+                    // Try getting location
+                    const geoRes = await fetch('https://ipapi.co/json/');
+                    const geo = await geoRes.json();
+
+                    if (!geo.latitude) throw new Error("No location");
+
+                    // Fetch weather
+                    const wxRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${geo.latitude}&longitude=${geo.longitude}&current_weather=true`);
+                    const wx = await wxRes.json();
+
+                    const temp = Math.round(wx.current_weather.temperature);
+                    const code = wx.current_weather.weathercode;
+
+                    // Map code to Phosphor Icon
+                    let icon = 'ph-sun';
+                    if (code === 0) icon = 'ph-sun';
+                    else if (code >= 1 && code <= 3) icon = 'ph-cloud-sun';
+                    else if (code >= 45 && code <= 48) icon = 'ph-cloud-fog';
+                    else if (code >= 51 && code <= 67) icon = 'ph-cloud-rain';
+                    else if (code >= 71 && code <= 82) icon = 'ph-cloud-snow';
+                    else if (code >= 95) icon = 'ph-cloud-lightning';
+
+                    wxWidget.innerHTML = `<i class="ph ${icon}"></i> <span>${temp}&deg;C &bull; ${geo.city}</span>`;
+                } catch (e) {
+                    wxWidget.innerHTML = `<i class="ph ph-cloud-slash"></i> <span>Weather Sync Offline</span>`;
+                }
+            }
+            loadWeather();
+
+            /* =========================================================================
+               CLOCK
+               ========================================================================= */
+            function updateClock() {
+                const now = new Date();
+
+                let h = now.getHours();
+                let m = now.getMinutes() < 10 ? '0' + now.getMinutes() : now.getMinutes();
+
+                if (config.timeformat === '12') {
+                    const ampm = h >= 12 ? ' PM' : ' AM';
+                    h = h % 12;
+                    h = h ? h : 12;
+                    document.getElementById('time').textContent = `${h}:${m}`;
+                    // small modifier for am/pm could be added, but minimal looks better
+                } else {
+                    document.getElementById('time').textContent = `${h}:${m}`;
+                }
+
+                const options = { weekday: 'long', month: 'long', day: 'numeric' };
+                document.getElementById('date').textContent = now.toLocaleDateString(undefined, options);
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            /* =========================================================================
+               SEARCH FORM
+               ========================================================================= */
+            const searchIcon = document.getElementById('search-icon');
+            searchIcon.className = `ph ${engines[config.engine].icon}`;
+
+            document.getElementById('search-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const q = document.getElementById('search-input').value.trim();
+                if (!q) return;
+
+                const isUrl = /^((https?:\/\/)?)([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/.test(q) && !q.includes(' ');
+                const isLocalHost = /^((https?:\/\/)?)(localhost|127\.0\.0\.1)(:\d+)?(\/.*)?$/.test(q);
+
+                if (isUrl || isLocalHost) {
+                    let url = q;
+                    if (!url.startsWith('http')) url = 'https://' + url;
+                    window.location.href = url;
+                } else {
+                    window.location.href = `${engines[config.engine].url}${encodeURIComponent(q)}`;
+                }
+            });
+
+            /* =========================================================================
+               APP BOOKMARKS
+               ========================================================================= */
+            const bmContainer = document.getElementById('bookmarks-container');
+
+            function renderBookmarks() {
+                bmContainer.innerHTML = '';
+                bookmarks.forEach((bm, idx) => {
+                    const domain = new URL(bm.url).hostname;
+                    // Using clearbit or icon.horse for high-res standard squircle icons
+                    const iconUrl = `https://icon.horse/icon/${domain}`;
+
+                    const el = document.createElement('div');
+                    el.className = 'bookmark-item';
+                    el.innerHTML = `
+                        <div class="bm-actions">
+                            <button class="bm-action-btn edit" data-idx="${idx}"><i class="ph ph-pencil-simple"></i></button>
+                            <button class="bm-action-btn del" data-idx="${idx}"><i class="ph ph-trash"></i></button>
+                        </div>
+                        <div class="bm-icon-box" onclick="window.location.href='${bm.url}'">
+                            <img src="${iconUrl}" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' viewBox=\\'0 0 100 100\\'><text y=\\'50%' x=\\'50%' font-family=\\'Arial\\' font-size=\\'40\\' dominant-baseline=\\'middle\\' text-anchor=\\'middle\\' fill=\\'white\\'>${bm.name.charAt(0)}</text></svg>'">
+                        </div>
+                        <div class="bm-label">${bm.name}</div>
+                    `;
+                    bmContainer.appendChild(el);
+                });
+
+                // Add New button
+                const addBtn = document.createElement('div');
+                addBtn.className = 'bookmark-item';
+                addBtn.innerHTML = `
+                    <div class="bm-icon-box" style="border: 2px dashed rgba(255,255,255,0.4); background: transparent;">
+                        <i class="ph ph-plus" style="font-size: 2rem;"></i>
+                    </div>
+                    <div class="bm-label">Add App</div>
+                `;
+                addBtn.onclick = () => openBmModal();
+                bmContainer.appendChild(addBtn);
+
+                // Bind actions
+                document.querySelectorAll('.bm-action-btn.edit').forEach(b => {
+                    b.onclick = (e) => { e.stopPropagation(); openBmModal(parseInt(b.dataset.idx)); }
+                });
+                document.querySelectorAll('.bm-action-btn.del').forEach(b => {
+                    b.onclick = (e) => {
+                        e.stopPropagation();
+                        bookmarks.splice(parseInt(b.dataset.idx), 1);
+                        saveBookmarks();
+                    }
+                });
+            }
+
+            function saveBookmarks() {
+                localStorage.setItem('nt_bookmarks', JSON.stringify(bookmarks));
+                renderBookmarks();
+            }
+            renderBookmarks();
+
+            /* =========================================================================
+               TASKS PANEL
+               ========================================================================= */
+            const tasksBtn = document.getElementById('tasks-btn');
+            const sidePanel = document.getElementById('side-panel');
+            const closePanelBtn = document.getElementById('close-panel-btn');
+            const tasksList = document.getElementById('tasks-list');
+            const taskForm = document.getElementById('task-form');
+            const taskInput = document.getElementById('task-input');
+
+            tasksBtn.onclick = () => sidePanel.classList.add('open');
+            closePanelBtn.onclick = () => sidePanel.classList.remove('open');
+
+            function renderTasks() {
+                tasksList.innerHTML = '';
+                tasks.forEach((t, idx) => {
+                    const el = document.createElement('div');
+                    el.className = 'task-item';
+                    el.innerHTML = `
+                        <div class="task-check ${t.done ? 'completed' : ''}" data-idx="${idx}"></div>
+                        <div class="task-text ${t.done ? 'completed' : ''}">${t.text}</div>
+                        <div class="task-delete" data-idx="${idx}"><i class="ph ph-trash"></i></div>
+                    `;
+                    tasksList.appendChild(el);
+                });
+
+                document.querySelectorAll('.task-check').forEach(c => {
+                    c.onclick = () => {
+                        tasks[c.dataset.idx].done = !tasks[c.dataset.idx].done;
+                        saveTasks();
+                    };
+                });
+                document.querySelectorAll('.task-delete').forEach(d => {
+                    d.onclick = () => {
+                        tasks.splice(d.dataset.idx, 1);
+                        saveTasks();
+                    };
+                });
+            }
+
+            function saveTasks() {
+                localStorage.setItem('nt_tasks', JSON.stringify(tasks));
+                renderTasks();
+            }
+
+            taskForm.onsubmit = (e) => {
+                e.preventDefault();
+                if (!taskInput.value.trim()) return;
+                tasks.unshift({ text: taskInput.value.trim(), done: false });
+                taskInput.value = '';
+                saveTasks();
+            };
+            renderTasks();
+
+            /* =========================================================================
+               SETTINGS & MODALS
+               ========================================================================= */
+            const settingsBtn = document.getElementById('settings-btn');
+            const settingsModal = document.getElementById('settings-modal');
+            const closeSettingsBtn = document.getElementById('close-settings-btn');
+
+            // Setting Selects
+            const sEngine = document.getElementById('setting-engine');
+            const sWallpaper = document.getElementById('setting-wallpaper');
+            const sTimeFormat = document.getElementById('setting-timeformat');
+
+            // Sync UI to Config
+            sEngine.value = config.engine;
+            sWallpaper.value = config.wallpaper;
+            sTimeFormat.value = config.timeformat;
+
+            settingsBtn.onclick = () => settingsModal.classList.add('active');
+            closeSettingsBtn.onclick = () => settingsModal.classList.remove('active');
+
+            // Listeners for auto-save config
+            [sEngine, sWallpaper, sTimeFormat].forEach(el => {
+                el.onchange = () => {
+                    config.engine = sEngine.value;
+                    config.wallpaper = sWallpaper.value;
+                    config.timeformat = sTimeFormat.value;
+                    localStorage.setItem('nt_config', JSON.stringify(config));
+
+                    // Live apply
+                    searchIcon.className = `ph ${engines[config.engine].icon}`;
+                    updateClock();
+                    if (el === sWallpaper) setWallpaper();
+                };
+            });
+
+            // Bookmark Modal
+            const bmModal = document.getElementById('bm-modal');
+            const bmForm = document.getElementById('bm-form');
+            const bmCancel = document.getElementById('bm-cancel-btn');
+
+            function openBmModal(idx = -1) {
+                document.getElementById('bm-index').value = idx;
+                if (idx >= 0) {
+                    document.getElementById('bm-modal-title').textContent = 'Edit App';
+                    document.getElementById('bm-name').value = bookmarks[idx].name;
+                    document.getElementById('bm-url').value = bookmarks[idx].url;
+                } else {
+                    document.getElementById('bm-modal-title').textContent = 'Add App';
+                    document.getElementById('bm-name').value = '';
+                    document.getElementById('bm-url').value = '';
+                }
+                bmModal.classList.add('active');
+                setTimeout(() => document.getElementById('bm-name').focus(), 100);
+            }
+
+            bmCancel.onclick = () => bmModal.classList.remove('active');
+
+            bmForm.onsubmit = (e) => {
+                e.preventDefault();
+                const idx = parseInt(document.getElementById('bm-index').value);
+                const name = document.getElementById('bm-name').value.trim();
+                let url = document.getElementById('bm-url').value.trim();
+                if (!url.startsWith('http')) url = 'https://' + url;
+
+                if (idx >= 0) {
+                    bookmarks[idx] = { name, url };
+                } else {
+                    bookmarks.push({ name, url });
+                }
+                saveBookmarks();
+                bmModal.classList.remove('active');
+            };
+
+            // Close modals on outside click
+            window.onclick = (e) => {
+                if (e.target === settingsModal) settingsModal.classList.remove('active');
+                if (e.target === bmModal) bmModal.classList.remove('active');
+            };
+
+            // Send state to browser UI to mask the URL and set a custom icon
+            if (window.onStateUpdate) {
+                window.onStateUpdate(
+                    encodeURIComponent('New Tab'),
+                    encodeURIComponent('qenba://home'),
+                    false, false,
+                    encodeURIComponent('https://www.google.com/s2/favicons?domain=home&sz=32') // placeholder home icon
+                );
+            }
+
+        });
+    </script>
+</body>
+
+</html>
