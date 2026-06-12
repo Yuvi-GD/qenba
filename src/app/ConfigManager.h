@@ -2,9 +2,16 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <filesystem>
 
 namespace Qenba {
+
+struct PinnedAppConfig {
+    std::string title;
+    std::string url;
+    std::string icon;
+};
 
 struct AppConfig {
     std::string home_url = "qenba://home";
@@ -12,6 +19,7 @@ struct AppConfig {
     std::string ai_engine = "duck";
     bool show_home_button = true;
     bool dynamic_wallpaper = true;
+    std::vector<PinnedAppConfig> pinned_apps;
 };
 
 class ConfigManager {

@@ -120,14 +120,20 @@ void UIManager::init() {
         m_appWindow->set_sidebar_open(true);
         if (m_sidebarNavigateCallback) m_sidebarNavigateCallback(std::string(url.data()));
     });
-    app->on_sidebar_remove_app([this](slint::SharedString url) {
-        if (m_sidebarRemoveAppCallback) m_sidebarRemoveAppCallback(std::string(url.data()));
+    app->on_sidebar_context_menu([this](slint::SharedString url) {
+        if (m_sidebarContextMenuCallback) m_sidebarContextMenuCallback(std::string(url.data()));
     });
     app->on_sidebar_back([this]()    { if (m_sidebarBackCallback)    m_sidebarBackCallback(); });
     app->on_sidebar_refresh([this]() { if (m_sidebarRefreshCallback) m_sidebarRefreshCallback(); });
     app->on_sidebar_close([this]() {
         m_appWindow->set_sidebar_open(false);
-        if (m_sidebarCloseCallback) m_sidebarCloseCallback(); // hides WebView HWND
+        if (m_sidebarCloseCallback) m_sidebarCloseCallback(); // destroys WebView HWND
+    });
+    app->on_sidebar_hide([this]() {
+        if (m_sidebarHideCallback) m_sidebarHideCallback(); // hides WebView HWND
+    });
+    app->on_copy_sidebar_url([this](slint::SharedString url) {
+        if (m_copyToClipboardCallback) m_copyToClipboardCallback(std::string(url.data()));
     });
     app->on_toggle_ai_chat([this]() {
         if (m_toggleAIChatCallback) m_toggleAIChatCallback();
@@ -200,10 +206,12 @@ void UIManager::setNewTabCallback(std::function<void()> cb)    { m_newTabCallbac
 void UIManager::setSidebarSyncGeometryCallback(std::function<void(float, float, float, float)> cb) { m_sidebarSyncGeometryCallback = cb; }
 void UIManager::setSidebarPinCurrentCallback(std::function<void()> cb)                            { m_sidebarPinCurrentCallback = cb; }
 void UIManager::setSidebarNavigateCallback(std::function<void(const std::string&)> cb)            { m_sidebarNavigateCallback = cb; }
-void UIManager::setSidebarRemoveAppCallback(std::function<void(const std::string&)> cb)           { m_sidebarRemoveAppCallback = cb; }
+void UIManager::setSidebarContextMenuCallback(std::function<void(const std::string&)> cb)         { m_sidebarContextMenuCallback = cb; }
 void UIManager::setSidebarBackCallback(std::function<void()> cb)                                  { m_sidebarBackCallback = cb; }
 void UIManager::setSidebarRefreshCallback(std::function<void()> cb)                               { m_sidebarRefreshCallback = cb; }
 void UIManager::setSidebarCloseCallback(std::function<void()> cb)                                 { m_sidebarCloseCallback = cb; }
+void UIManager::setSidebarHideCallback(std::function<void()> cb)                                  { m_sidebarHideCallback = cb; }
+void UIManager::setCopyToClipboardCallback(std::function<void(const std::string&)> cb)            { m_copyToClipboardCallback = cb; }
 void UIManager::setToggleAIChatCallback(std::function<void()> cb)                                 { m_toggleAIChatCallback = cb; }
 
 void UIManager::updateActiveTabState(int tabIndex, const std::string& title,

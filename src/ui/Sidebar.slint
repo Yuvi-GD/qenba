@@ -83,7 +83,7 @@ component PinBtn inherits Rectangle {
     in property <bool> active: false;
     in property <image> favicon;
     callback clicked();
-    callback right-clicked();
+    callback app-context-menu();
     width: 36px;
     height: 36px;
     border-radius: 8px;
@@ -112,11 +112,12 @@ component PinBtn inherits Rectangle {
     }
 
     t := TouchArea {
+        clicked => {
+            root.clicked();
+        }
         pointer-event(evt) => {
-            if (evt.button == PointerEventButton.left && evt.kind == PointerEventKind.up) {
-                root.clicked();
-            } else if (evt.button == PointerEventButton.right && evt.kind == PointerEventKind.up) {
-                root.right-clicked();
+            if (evt.button == PointerEventButton.right && evt.kind == PointerEventKind.up) {
+                root.app-context-menu();
             }
         }
     }
@@ -137,6 +138,7 @@ export component SidePanel inherits Rectangle {
     callback on-back();
     callback on-refresh();
     callback on-close();
+    callback on-copy-url(string);
     callback on-resize-start();
     callback on-resize-move(length);  // emits new panel width
 
@@ -187,6 +189,7 @@ export component SidePanel inherits Rectangle {
                 height: 44px;
                 alignment: center;
                 spacing: 1px;
+                horizontal-stretch: 1;
                 Text {
                     text: root.panel-title != "" ? root.panel-title : "Side Panel";
                     color: #e0e0e0;
@@ -196,17 +199,47 @@ export component SidePanel inherits Rectangle {
                     vertical-alignment: center;
                 }
 
-                if root.panel-domain != "": Text {
-                    text: root.panel-domain;
-                    color: #6b7280;
-                    font-size: 10px;
-                    overflow: elide;
-                    vertical-alignment: center;
-                }
-            }
+                if root.panel-domain != "": Rectangle {
+                    height: 14px; 
+                    row_ta := TouchArea {
+                        clicked => {
+                            root.on-copy-url(root.panel-domain);
+                        }
+                    }
 
-            Rectangle {
-                horizontal-stretch: 1;
+                    HorizontalLayout {
+                        spacing: 4px;
+                        
+                        // Copy Button first
+                        Rectangle {
+                            width: 14px;
+                            height: 14px;
+                            border-radius: 3px;
+                            opacity: row_ta.has-hover ? 1.0 : 0.0;
+                            animate opacity { duration: 150ms; }
+                            Path {
+                                width: 10px;
+                                height: 10px;
+                                x: 2px;
+                                y: 2px;
+                                stroke: row_ta.pressed ? #ffffff : (row_ta.has-hover ? #d4d4d4 : #6b7280);
+                                stroke-width: 1.2px;
+                                fill: transparent;
+                                commands: "M 3 3 L 8 3 L 8 8 L 3 8 Z M 2 6 L 1 6 L 1 1 L 6 1 L 6 2";
+                            }
+                        }
+
+                        // URL Text
+                        Text {
+                            text: root.panel-domain;
+                            color: row_ta.pressed ? #d4d4d4 : #6b7280;
+                            font-size: 10px;
+                            overflow: elide;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                        }
+                    }
+                }
             }
 
             // ── Buttons ──────────────────────────────────────────────
@@ -303,7 +336,7 @@ export component SidebarBar inherits Rectangle {
     // Actions
     callback search-toggled();
     callback app-toggled(string);   // url
-    callback app-removed(string);
+    callback app-context-menu(string);
     callback pin-current();
     width: 44px;
     background: #1a1a1a;
@@ -318,7 +351,7 @@ export component SidebarBar inherits Rectangle {
     VerticalLayout {
         padding: 6px;
         spacing: 4px;
-        alignment: start;
+        // alignment removed so Flickable can stretch
 
         // ── Search icon (magnifying glass path) ─────────────────────────────
         Rectangle {
@@ -352,15 +385,25 @@ export component SidebarBar inherits Rectangle {
         }
 
         // ── Pinned apps ──────────────────────────────────────────────────────
-        for app[i] in root.apps: PinBtn {
-            lbl: app.icon != "" ? app.icon : "W";
-            favicon: app.favicon;
-            active: root.sidebar-open && root.active-url == app.url;
-            clicked => {
-                root.app-toggled(app.url);
-            }
-            right-clicked => {
-                root.app-removed(app.url);
+        Flickable {
+            vertical-stretch: 1;
+            viewport-height: pinned-ly.preferred-height;
+            
+            pinned-ly := VerticalLayout {
+                spacing: 4px;
+                alignment: start;
+                
+                for app[i] in root.apps: PinBtn {
+                    lbl: app.icon != "" ? app.icon : "W";
+                    favicon: app.favicon;
+                    active: root.sidebar-open && root.active-url == app.url;
+                    clicked => {
+                        root.app-toggled(app.url);
+                    }
+                    app-context-menu => {
+                        root.app-context-menu(app.url);
+                    }
+                }
             }
         }
         Rectangle {

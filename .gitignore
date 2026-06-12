@@ -57,9 +57,6 @@ compile_commands.json
 *.exp
 *.map
 
-# --- Slint Generated C++ Files & Cache ---
-# (UIManager.h and other custom headers are in src/ui and should be tracked).
-
 # --- Third-party Dependencies ---
 # Ignore downloaded Slint binaries, but keep the directory structure
 third_party/slint/*

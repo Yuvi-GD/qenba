@@ -165,6 +165,9 @@ export component AppWindow inherits Window {
     callback sidebar-back();
     callback sidebar-refresh();
     callback sidebar-close();
+    callback sidebar-context-menu(string);
+    callback sidebar-hide();
+    callback copy-sidebar-url(string);
     callback toggle-ai-chat();
     callback app-toggled(string);
     callback sync-sidebar-geometry(length, length, length, length);
@@ -180,7 +183,8 @@ export component AppWindow inherits Window {
     // Logic for search panel toggle
     app-toggled(url) => {
         if (root.sidebar-open && root.active-sidebar-url == url) {
-            root.sidebar-close();
+            root.sidebar-open = false;
+            root.sidebar-hide();
             root.active-sidebar-url = "";
         } else {
             root.sidebar-open = true;
@@ -416,28 +420,33 @@ export component AppWindow inherits Window {
                         }
                     }
 
-                    addr := TextInput {
-                        font-size: 13px;
-                        color: #d4d4d4;
-                        vertical-alignment: center;
-                        single-line: true;
-                        text: root.url;
-                        edited => {
-                            root.url = self.text;
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        addr := TextInput {
+                            width: 100%;
+                            height: 100%;
+                            font-size: 13px;
+                            color: #d4d4d4;
+                            vertical-alignment: center;
+                            single-line: true;
+                            text: root.url;
+                            edited => {
+                                root.url = self.text;
+                            }
+                            accepted => {
+                                root.load-url(self.text);
+                                dummy_focus.focus();
+                            }
                         }
-                        accepted => {
-                            root.load-url(self.text);
-                            dummy_focus.focus();
-                        }
-                    }
 
-                    // Mask click to ensure focus is always grabbed
-                    TouchArea {
-                        width: 100%;
-                        height: 100%;
-                        pointer-event(evt) => {
-                            if (evt.kind == PointerEventKind.down) {
-                                addr.focus();
+                        // Mask click to ensure focus is always grabbed
+                        TouchArea {
+                            width: 100%;
+                            height: 100%;
+                            pointer-event(evt) => {
+                                if (evt.kind == PointerEventKind.down) {
+                                    addr.focus();
+                                }
                             }
                         }
                     }
@@ -733,6 +742,9 @@ export component AppWindow inherits Window {
                     root.sidebar-close();
                     root.active-sidebar-url = "";
                 }
+                on-copy-url(url) => {
+                    root.copy-sidebar-url(url);
+                }
                 // resize-start: down sets is-resizing=true, up sets it false
                 on-resize-start => {
                     root.is-resizing = !root.is-resizing;
@@ -764,8 +776,8 @@ export component AppWindow inherits Window {
                 app-toggled(url) => {
                     root.app-toggled(url);
                 }
-                app-removed(url) => {
-                    root.sidebar-remove-app(url);
+                app-context-menu(url) => {
+                    root.sidebar-context-menu(url);
                 }
                 pin-current => {
                     root.sidebar-pin-current();

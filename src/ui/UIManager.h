@@ -36,10 +36,12 @@ public:
     void setSidebarSyncGeometryCallback(std::function<void(float, float, float, float)> cb);
     void setSidebarPinCurrentCallback(std::function<void()> cb);
     void setSidebarNavigateCallback(std::function<void(const std::string&)> cb);
-    void setSidebarRemoveAppCallback(std::function<void(const std::string&)> cb);
+    void setSidebarContextMenuCallback(std::function<void(const std::string&)> cb);
     void setSidebarBackCallback(std::function<void()> cb);
     void setSidebarRefreshCallback(std::function<void()> cb);
     void setSidebarCloseCallback(std::function<void()> cb);
+    void setSidebarHideCallback(std::function<void()> cb);
+    void setCopyToClipboardCallback(std::function<void(const std::string&)> cb);
     void setToggleAIChatCallback(std::function<void()> cb);
 
     // UI Updates
@@ -70,10 +72,12 @@ private:
     std::function<void(float, float, float, float)> m_sidebarSyncGeometryCallback;
     std::function<void()> m_sidebarPinCurrentCallback;
     std::function<void(const std::string&)> m_sidebarNavigateCallback;
-    std::function<void(const std::string&)> m_sidebarRemoveAppCallback;
+    std::function<void(const std::string&)> m_sidebarContextMenuCallback;
     std::function<void()> m_sidebarBackCallback;
     std::function<void()> m_sidebarRefreshCallback;
     std::function<void()> m_sidebarCloseCallback;
+    std::function<void()> m_sidebarHideCallback;
+    std::function<void(const std::string&)> m_copyToClipboardCallback;
     std::function<void()> m_toggleAIChatCallback;
 };
 

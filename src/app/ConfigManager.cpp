@@ -68,6 +68,44 @@ void ConfigManager::load() {
     m_config.ai_engine = extractString("ai_engine", "duck");
     m_config.show_home_button = extractBool("show_home_button", true);
     m_config.dynamic_wallpaper = extractBool("dynamic_wallpaper", true);
+
+    // Parse pinned_apps array
+    m_config.pinned_apps.clear();
+    size_t apps_start = content.find("\"pinned_apps\"");
+    if (apps_start != std::string::npos) {
+        size_t array_start = content.find("[", apps_start);
+        size_t array_end = content.find("]", apps_start);
+        if (array_start != std::string::npos && array_end != std::string::npos && array_end > array_start) {
+            std::string array_content = content.substr(array_start, array_end - array_start);
+            size_t pos = 0;
+            while ((pos = array_content.find("{", pos)) != std::string::npos) {
+                size_t obj_end = array_content.find("}", pos);
+                if (obj_end == std::string::npos) break;
+                std::string obj = array_content.substr(pos, obj_end - pos);
+                
+                auto extractStrObj = [&](const std::string& key) {
+                    size_t k_pos = obj.find("\"" + key + "\"");
+                    if (k_pos == std::string::npos) return std::string("");
+                    size_t colon = obj.find(":", k_pos);
+                    if (colon == std::string::npos) return std::string("");
+                    size_t startQuote = obj.find("\"", colon);
+                    if (startQuote == std::string::npos) return std::string("");
+                    size_t endQuote = obj.find("\"", startQuote + 1);
+                    if (endQuote == std::string::npos) return std::string("");
+                    return obj.substr(startQuote + 1, endQuote - startQuote - 1);
+                };
+
+                PinnedAppConfig app;
+                app.title = extractStrObj("title");
+                app.url = extractStrObj("url");
+                app.icon = extractStrObj("icon");
+                if (!app.url.empty()) {
+                    m_config.pinned_apps.push_back(app);
+                }
+                pos = obj_end + 1;
+            }
+        }
+    }
 }
 
 void ConfigManager::save() {
@@ -80,7 +118,18 @@ void ConfigManager::save() {
     f << "  \"theme\": \"" << m_config.theme << "\",\n";
     f << "  \"ai_engine\": \"" << m_config.ai_engine << "\",\n";
     f << "  \"show_home_button\": " << (m_config.show_home_button ? "true" : "false") << ",\n";
-    f << "  \"dynamic_wallpaper\": " << (m_config.dynamic_wallpaper ? "true" : "false") << "\n";
+    f << "  \"dynamic_wallpaper\": " << (m_config.dynamic_wallpaper ? "true" : "false") << ",\n";
+    
+    f << "  \"pinned_apps\": [\n";
+    for (size_t i = 0; i < m_config.pinned_apps.size(); ++i) {
+        const auto& app = m_config.pinned_apps[i];
+        f << "    {\n";
+        f << "      \"title\": \"" << app.title << "\",\n";
+        f << "      \"url\": \"" << app.url << "\",\n";
+        f << "      \"icon\": \"" << app.icon << "\"\n";
+        f << "    }" << (i < m_config.pinned_apps.size() - 1 ? "," : "") << "\n";
+    }
+    f << "  ]\n";
     f << "}\n";
 }
 

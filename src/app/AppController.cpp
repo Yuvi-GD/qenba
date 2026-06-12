@@ -1,6 +1,7 @@
 #include "AppController.h"
 #include "utils/FaviconUtils.h"
 #include "ConfigManager.h"
+#include "utils/Platform.h"
 #include <iostream>
 
 namespace Qenba {
@@ -26,6 +27,49 @@ void AppController::init() {
     auto& appWin = m_ui.getAppWindow();
     appWin->set_show_home_button(config.show_home_button);
     appWin->set_config_theme(config.theme.c_str());
+
+    // Load pinned apps from config
+    auto pinnedModel = std::make_shared<slint::VectorModel<PinnedApp>>();
+    for (const auto& appConf : config.pinned_apps) {
+        PinnedApp pa;
+        pa.title = slint::SharedString(appConf.title);
+        pa.url = slint::SharedString(appConf.url);
+        pa.icon = slint::SharedString(appConf.icon);
+        pinnedModel->push_back(pa);
+    }
+    appWin->set_pinned_apps(pinnedModel);
+
+    // Asynchronously fetch/load favicons for pinned apps
+    for (size_t i = 0; i < config.pinned_apps.size(); ++i) {
+        std::string trackUrl = config.pinned_apps[i].url;
+        std::string domain = trackUrl;
+        auto ps = domain.find("://");
+        if (ps != std::string::npos) domain = domain.substr(ps + 3);
+        auto sl = domain.find('/');
+        if (sl != std::string::npos) domain = domain.substr(0, sl);
+        
+        if (!domain.empty()) {
+            std::string svcUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
+            downloadFaviconAsync(svcUrl, [this, trackUrl](const std::wstring& path) {
+                auto img = loadFaviconImage(path);
+                if (img.size().width == 0) return;
+
+                auto& appWin = m_ui.getAppWindow();
+                auto model = appWin->get_pinned_apps();
+                auto nm = std::make_shared<slint::VectorModel<PinnedApp>>();
+                bool found = false;
+                for (int j = 0; j < model->row_count(); ++j) {
+                    auto item = *model->row_data(j);
+                    if (std::string(item.url.data()) == trackUrl) {
+                        item.favicon = img;
+                        found = true;
+                    }
+                    nm->push_back(item);
+                }
+                if (found) appWin->set_pinned_apps(nm);
+            });
+        }
+    }
 }
 
 void AppController::setParentHwnd(HWND hwnd) {
@@ -317,25 +361,72 @@ void AppController::setupCallbacks() {
         pa.title = title; pa.url = url.c_str(); pa.icon = iconLetter.c_str(); pa.favicon = favicon;
         nm->push_back(pa);
         appWin->set_pinned_apps(nm);
+
+        // Save to config
+        auto config = ConfigManager::instance().getConfig();
+        PinnedAppConfig pc;
+        pc.title = title; pc.url = url; pc.icon = iconLetter;
+        config.pinned_apps.push_back(pc);
+        ConfigManager::instance().setConfig(config);
     });
 
-    m_ui.setSidebarRemoveAppCallback([this](const std::string& url) {
-        auto& appWin = m_ui.getAppWindow();
-        auto model = appWin->get_pinned_apps();
-        auto nm = std::make_shared<slint::VectorModel<PinnedApp>>();
-        
-        for (int i = 0; i < model->row_count(); ++i) {
-            auto item = *model->row_data(i);
-            if (std::string(item.url.data()) != url) {
-                nm->push_back(item);
+    m_ui.setSidebarContextMenuCallback([this](const std::string& url) {
+        slint::invoke_from_event_loop([this, url]() {
+            Platform::initDarkTheme();
+            POINT pt;
+            GetCursorPos(&pt);
+            
+            SetForegroundWindow(m_state->parentHwnd);
+            
+            HMENU hMenu = CreatePopupMenu();
+            AppendMenuA(hMenu, MF_STRING, 1, "Refresh");
+            AppendMenuA(hMenu, MF_STRING, 2, "Close");
+            AppendMenuA(hMenu, MF_SEPARATOR, 0, NULL);
+            AppendMenuA(hMenu, MF_STRING, 3, "Remove");
+            
+            int cmd = TrackPopupMenu(hMenu, TPM_RETURNCMD | TPM_NONOTIFY | TPM_RIGHTBUTTON, pt.x, pt.y, 0, m_state->parentHwnd, NULL);
+            DestroyMenu(hMenu);
+            PostMessage(m_state->parentHwnd, WM_NULL, 0, 0);
+            
+            if (cmd == 1) {
+                // Refresh
+                if (m_state->sidebarTracks.count(url)) m_state->sidebarTracks[url]->reload();
+            } else if (cmd == 2) {
+                // Close
+                if (m_state->sidebarTracks.count(url)) {
+                    if (m_state->currentSidebarUrl == url) m_ui.getAppWindow()->invoke_sidebar_close();
+                    else m_state->sidebarTracks.erase(url);
+                }
+            } else if (cmd == 3) {
+                // Remove
+                auto& appWin = m_ui.getAppWindow();
+                auto model = appWin->get_pinned_apps();
+                auto nm = std::make_shared<slint::VectorModel<PinnedApp>>();
+                
+                for (int i = 0; i < model->row_count(); ++i) {
+                    auto item = *model->row_data(i);
+                    if (std::string(item.url.data()) != url) {
+                        nm->push_back(item);
+                    }
+                }
+                appWin->set_pinned_apps(nm);
+                
+                // Save to config
+                auto config = ConfigManager::instance().getConfig();
+                std::vector<PinnedAppConfig> newPins;
+                for (const auto& p : config.pinned_apps) {
+                    if (p.url != url) newPins.push_back(p);
+                }
+                config.pinned_apps = newPins;
+                ConfigManager::instance().setConfig(config);
+                
+                // Close if active
+                if (m_state->sidebarTracks.count(url)) {
+                    if (m_state->currentSidebarUrl == url) m_ui.getAppWindow()->invoke_sidebar_close();
+                    else m_state->sidebarTracks.erase(url);
+                }
             }
-        }
-        appWin->set_pinned_apps(nm);
-        
-        // If we closed the active panel app, close the panel
-        if (m_state->currentSidebarUrl == url) {
-            m_ui.getAppWindow()->invoke_sidebar_close();
-        }
+        });
     });
 
     m_ui.setSidebarNavigateCallback([this](const std::string& url) {
@@ -370,7 +461,19 @@ void AppController::setupCallbacks() {
     });
 
     m_ui.setSidebarCloseCallback([this]() {
+        if (m_state->activeSidebarTrack) {
+            m_state->activeSidebarTrack->setVisible(false);
+            m_state->sidebarTracks.erase(m_state->currentSidebarUrl);
+            m_state->activeSidebarTrack.reset();
+        }
+    });
+
+    m_ui.setSidebarHideCallback([this]() {
         if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->setVisible(false);
+    });
+
+    m_ui.setCopyToClipboardCallback([this](const std::string& url) {
+        Platform::setClipboardText(url);
     });
 
     m_ui.setSidebarBackCallback([this]()    { if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->goBack(); });
