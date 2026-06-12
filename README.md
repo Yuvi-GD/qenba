@@ -43,9 +43,10 @@ Qenba cleanly separates UI presentation, runtime coordination, and native browse
 * **Compiler:** MSVC 2022 (Visual Studio 2022) with C++20 support.
 * **CMake:** Version 3.25 or higher.
 * **WebView2 Runtime:** Pre-installed on most modern Windows systems.
+* **Slint C++ Binaries:** Download the pre-compiled `Slint-cpp-1.9.0-win64-MSVC.exe` from the [Slint v1.9.0 GitHub Releases](https://github.com/slint-ui/slint/releases/tag/v1.9.0) and install/extract it into the `third_party/slint` folder of this repository.
 
 ### Compilation Instructions
-To build Qenba from source, clone the repository and execute the following commands in your terminal:
+To build Qenba from source, ensure you have populated the `third_party/slint` folder with the binaries, clone the repository, and execute the following commands in your terminal:
 
 ```bash
 mkdir build

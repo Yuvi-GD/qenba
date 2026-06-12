@@ -1,9 +1,7 @@
-#include "window/WindowContext.h"
 #include "ui/UIManager.h"
 #include "app/AppController.h"
 #include "app/ConfigManager.h"
 #include "utils/FaviconUtils.h"
-#include <SDL3/SDL_main.h>
 #include <thread>
 #include <windows.h>
 
@@ -12,9 +10,6 @@ using namespace Qenba;
 int main(int argc, char* argv[]) {
     ConfigManager::instance().load();
     initFaviconCache();
-
-    WindowContext windowCtx("Qenba Background Context", 100, 100);
-    if (!windowCtx.init()) return 1;
 
     UIManager ui;
     ui.init();
@@ -39,15 +34,12 @@ int main(int argc, char* argv[]) {
     });
     initThread.detach();
 
-    // SDL pump thread
-    std::thread sdlPump([&windowCtx]() {
-        while (!windowCtx.shouldQuit()) {
-            windowCtx.pollEvents();
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        }
-    });
-    sdlPump.detach();
-
     ui.run();
     return 0;
 }
+
+#ifdef _WIN32
+int APIENTRY WinMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow) {
+    return main(__argc, __argv);
+}
+#endif
