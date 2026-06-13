@@ -92,22 +92,26 @@ component PinBtn inherits Rectangle {
     animate background { duration: 100ms; }
     
     // Icon container for better centering control
-    Rectangle {
-        width: 22px;
-        height: 22px;
-        // background-hover is enough; scale is not supported on Rectangle yet
-        if root.favicon.width > 0: Image {
-            source: root.favicon;
-            width: 100%;
-            height: 100%;
-            image-fit: contain;
-        }
-        if root.favicon.width == 0: Text {
-            text: root.lbl;
-            font-size: 13px;
-            color: root.active ? #4dabf7 : (t.has-hover ? #c8c8c8 : #6b7280);
-            horizontal-alignment: center;
-            vertical-alignment: center;
+    HorizontalLayout {
+        width: 100%; height: 100%;
+        alignment: center;
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                width: 22px; height: 22px;
+                if root.favicon.width > 0: Image {
+                    source: root.favicon;
+                    width: 100%; height: 100%;
+                    image-fit: contain;
+                }
+                if root.favicon.width == 0: Text {
+                    text: root.lbl;
+                    font-size: 13px;
+                    color: root.active ? #4dabf7 : (t.has-hover ? #c8c8c8 : #6b7280);
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
         }
     }
 
@@ -132,6 +136,7 @@ export component SidePanel inherits Rectangle {
     in property <string> panel-title: "Side Panel";
     in property <string> panel-domain: "";
     in property <image> panel-favicon;
+    in property <bool> is-adding-app: false;
     in property <bool> is-resizing: false;
 
     // Actions
@@ -139,6 +144,8 @@ export component SidePanel inherits Rectangle {
     callback on-refresh();
     callback on-close();
     callback on-copy-url(string);
+    callback on-submit-add-app(string);
+    callback on-add-current-tab();
     callback on-resize-start();
     callback on-resize-move(length);  // emits new panel width
 
@@ -170,10 +177,11 @@ export component SidePanel inherits Rectangle {
                 if root.panel-favicon.width == 0: Text {
                     text: root.panel-title != "" ? root.panel-title : "?";
                     color: #4dabf7;
-                    font-size: 11px;
+                    font-size: 9px;
                     font-weight: 700;
                     horizontal-alignment: center;
                     vertical-alignment: center;
+                    overflow: elide;
                 }
                 if root.panel-favicon.width > 0: Image {
                     source: root.panel-favicon;
@@ -277,13 +285,111 @@ export component SidePanel inherits Rectangle {
         }
     }
 
-    // ── Webview slot (native HWND fills this — tracked by Timer) ────────────
+    // ── Content Area ─────────────────────────────────────────────────────────
     Rectangle {
-        x: 8px;
         y: 44px;
-        width: root.width - 8px;
-        height: root.height - 44px;
-        background: #141414;
+        width: parent.width;
+        height: parent.height - 44px;
+        background: root.is-adding-app ? #1c1c1c : #141414;
+        
+        if root.is-adding-app: VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+            alignment: start;
+            
+            Text {
+                text: "Add Sidebar App";
+                font-size: 18px;
+                color: #fff;
+                font-weight: 600;
+            }
+
+            Rectangle {
+                height: 36px;
+                width: parent.width - 48px;
+                border-radius: 6px;
+                background: cur_ta.pressed ? #3b8ac4 : (cur_ta.has-hover ? #4dabf7 : #1e3a5c);
+                animate background { duration: 100ms; }
+                
+                HorizontalLayout {
+                    spacing: 8px;
+                    padding: 8px;
+                    alignment: center;
+                    Path {
+                        width: 16px;
+                        height: 16px;
+                        stroke: #fff;
+                        stroke-width: 1.5px;
+                        fill: transparent;
+                        commands: "M 2 2 L 14 2 L 14 14 L 2 14 Z M 8 5 L 8 11 M 5 8 L 11 8";
+                    }
+                    Text {
+                        text: "Add Current Tab";
+                        color: #fff;
+                        font-size: 13px;
+                        font-weight: 600;
+                        vertical-alignment: center;
+                    }
+                }
+                
+                cur_ta := TouchArea {
+                    clicked => { root.on-add-current-tab(); }
+                }
+            }
+
+            Text {
+                text: "Or enter a custom URL:";
+                font-size: 13px;
+                color: #a0a0a0;
+            }
+            
+            Rectangle {
+                height: 36px;
+                background: #2a2a2a;
+                border-radius: 6px;
+                border-width: 1px;
+                border-color: url_input.has-focus ? #4dabf7 : #3a3a3a;
+                
+                url_input := TextInput {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    height: parent.height;
+                    font-size: 13px;
+                    color: #fff;
+                    single-line: true;
+                    vertical-alignment: center;
+                    text: "https://";
+                    accepted => { root.on-submit-add-app(self.text); }
+                }
+            }
+            
+            Rectangle {
+                height: 32px;
+                width: 80px;
+                border-radius: 6px;
+                background: submit_ta.pressed ? #3b8ac4 : (submit_ta.has-hover ? #4dabf7 : #1e3a5c);
+                animate background { duration: 100ms; }
+                
+                Text {
+                    text: "Add URL";
+                    color: #fff;
+                    font-size: 13px;
+                    font-weight: 600;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+                
+                submit_ta := TouchArea {
+                    clicked => { root.on-submit-add-app(url_input.text); }
+                }
+            }
+        }
+        
+        // ── Webview slot (native HWND fills this — tracked by Timer) ────────────
+        if !root.is-adding-app: Rectangle {
+            width: 100%;
+            height: 100%;
+        }
     }
 
     // ── Full-height resize grip (left 8px strip) ─────────────────────────────
@@ -332,12 +438,18 @@ export component SidebarBar inherits Rectangle {
     in property <[PinnedApp]> apps;
     in property <bool> sidebar-open: false;
     in property <string> active-url: "";
+    in property <bool> is-appbar-mode: false;
 
-    // Actions
+    // Signals
+    callback toggle-appbar-mode();
+    callback minimize-window();
+    callback close-window();
     callback search-toggled();
     callback app-toggled(string);   // url
     callback app-context-menu(string);
-    callback pin-current();
+    callback add-app-menu();
+    callback sidebar-settings();
+    callback toggle-ai-chat();
     width: 44px;
     background: #1a1a1a;
     // Left border
@@ -352,6 +464,26 @@ export component SidebarBar inherits Rectangle {
         padding: 6px;
         spacing: 4px;
         // alignment removed so Flickable can stretch
+
+        // ── AI button ─────────────────────────────
+        if root.is-appbar-mode: Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: ai_ta.has-hover ? #252525 : transparent;
+            animate background { duration: 100ms; }
+            Path {
+                x: 7px;
+                y: 7px;
+                width: 22px;
+                height: 22px;
+                stroke: ai_ta.has-hover ? #e0e0e0 : #888;
+                stroke-width: 1.5px;
+                fill: transparent;
+                commands: "M 2 2 L 12 2 L 12 10 L 8 10 L 5 13 L 5 10 L 2 10 Z M 5 5 L 5 6 M 9 5 L 9 6";
+            }
+            ai_ta := TouchArea { clicked => { root.toggle-ai-chat(); } }
+        }
 
         // ── Search icon (magnifying glass path) ─────────────────────────────
         Rectangle {
@@ -368,7 +500,7 @@ export component SidebarBar inherits Rectangle {
                 stroke: (root.sidebar-open && root.active-url == "search") ? #4dabf7 : (srch.has-hover ? #c8c8c8 : #6b7280);
                 stroke-width: 1.5px;
                 fill: transparent;
-                commands: "M 12 7 A 5 5 0 1 1 7 12 M 10.5 10.5 L 16 16";
+                commands: "M 10 10 m -4 0 a 4 4 0 1 0 8 0 a 4 4 0 1 0 -8 0 M 13 13 l 4 4";
             }
 
             srch := TouchArea {
@@ -388,6 +520,7 @@ export component SidebarBar inherits Rectangle {
         Flickable {
             vertical-stretch: 1;
             viewport-height: pinned-ly.preferred-height;
+            viewport-width: 36px;
             
             pinned-ly := VerticalLayout {
                 spacing: 4px;
@@ -404,6 +537,26 @@ export component SidebarBar inherits Rectangle {
                         root.app-context-menu(app.url);
                     }
                 }
+                
+                Rectangle {
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 8px;
+                    background: add_btn.has-hover ? #252525 : transparent;
+                    animate background { duration: 100ms; }
+                    Path {
+                        x: 10px;
+                        y: 10px;
+                        width: 16px;
+                        height: 16px;
+                        stroke: add_btn.has-hover ? #c8c8c8 : #6b7280;
+                        stroke-width: 1.5px;
+                        commands: "M 8 0 L 8 16 M 0 8 L 16 8";
+                    }
+                    add_btn := TouchArea {
+                        clicked => { root.add-app-menu(); }
+                    }
+                }
             }
         }
         Rectangle {
@@ -412,27 +565,27 @@ export component SidebarBar inherits Rectangle {
             background: #2a2a2a;
         }
 
-        // ── Pin current tab (pushpin path icon) ──────────────────────────────
+        // ── Settings icon ──────────────────────────────
         Rectangle {
             width: 36px;
             height: 36px;
             border-radius: 8px;
-            background: pin.has-hover ? #252525 : transparent;
+            background: set_btn.has-hover ? #252525 : transparent;
             animate background { duration: 100ms; }
             Path {
-                x: 11px;
-                y: 6px;
-                width: 14px;
-                height: 22px;
-                stroke: pin.has-hover ? #c8c8c8 : #6b7280;
+                x: 8px;
+                y: 8px;
+                width: 20px;
+                height: 20px;
+                stroke: set_btn.has-hover ? #c8c8c8 : #6b7280;
                 stroke-width: 1.5px;
                 fill: transparent;
-                commands: "M 3 0 L 11 0 L 11 6 L 14 10 L 7 10 M 7 10 L 7 18 M 0 10 L 7 10 M 3 0 L 3 6 L 0 10";
+                commands: "M 10 7 A 3 3 0 1 1 7 10 M 10 2 L 10 4 M 10 18 L 10 16 M 2 10 L 4 10 M 18 10 L 16 10 M 4.3 4.3 L 5.7 5.7 M 15.7 15.7 L 14.3 14.3 M 15.7 4.3 L 14.3 5.7 M 4.3 15.7 L 5.7 14.3";
             }
 
-            pin := TouchArea {
+            set_btn := TouchArea {
                 clicked => {
-                    root.pin-current();
+                    root.sidebar-settings();
                 }
             }
         }

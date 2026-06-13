@@ -158,6 +158,22 @@ WebTrack::WebTrack(void* nativeWindowHandle) {
         webview_return(static_cast<WebTrack*>(arg)->m_webview, seq, 0, "");
     }, this);
 
+    // Bind submitAddApp for Add App page
+    webview_bind(m_webview, "submitAddApp", [](const char* seq, const char* req, void* arg) {
+        auto self = static_cast<WebTrack*>(arg);
+        if (self && self->m_onSubmitAddApp) {
+            std::string s(req);
+            // req is ["url"]
+            size_t firstQuote = s.find_first_of("\"");
+            size_t lastQuote = s.find_last_of("\"");
+            if (firstQuote != std::string::npos && lastQuote != std::string::npos && lastQuote > firstQuote) {
+                std::string url = s.substr(firstQuote + 1, lastQuote - firstQuote - 1);
+                self->m_onSubmitAddApp(url);
+            }
+        }
+        webview_return(self->m_webview, seq, 0, "");
+    }, this);
+
     // Bind getConfig for frontend to fetch the entire settings state
     webview_bind(m_webview, "getConfig", [](const char* seq, const char* req, void* arg) {
         auto& config = ConfigManager::instance();
@@ -219,6 +235,10 @@ void WebTrack::setOnInteraction(std::function<void()> cb) {
     m_onInteraction = cb;
 }
 
+void WebTrack::setOnSubmitAddApp(std::function<void(const std::string&)> cb) {
+    m_onSubmitAddApp = cb;
+}
+
 WebTrack::~WebTrack() {
     if (m_webview) {
         webview_destroy(m_webview);
@@ -242,10 +262,20 @@ void WebTrack::navigate(const std::string& url) {
 #endif
 
             std::string page = url.substr(8); // remove qenba://
+            // Strip query string — e.g. "add-app?appbar=1" → "add-app"
+            auto qmark = page.find('?');
+            if (qmark != std::string::npos) page = page.substr(0, qmark);
+
             auto target = basePath / "config" / (page + ".html");
             
+            // Append original query string to the file:// URL so JS can read it
+            std::string query = "";
+            auto qpos = url.find('?');
+            if (qpos != std::string::npos) query = url.substr(qpos); // "?appbar=1"
+
             std::string fileUrl = "file:///" + target.string();
             for (char& c : fileUrl) if (c == '\\') c = '/';
+            fileUrl += query; // append ?appbar=1 etc.
             webview_navigate(m_webview, fileUrl.c_str());
         } else {
             webview_navigate(m_webview, url.c_str());

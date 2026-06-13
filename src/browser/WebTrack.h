@@ -16,6 +16,7 @@ public:
 
     void setOnStateChanged(std::function<void(const std::string&, const std::string&, bool, bool, const std::string&)> cb);
     void setOnInteraction(std::function<void()> cb);
+    void setOnSubmitAddApp(std::function<void(const std::string&)> cb);
     void navigate(const std::string& url);
     void setBounds(int x, int y, int width, int height);
     void setVisible(bool visible);
@@ -34,6 +35,7 @@ private:
     webview_t m_webview = nullptr;
     std::function<void(const std::string&, const std::string&, bool, bool, const std::string&)> m_onStateChanged;
     std::function<void()> m_onInteraction;
+    std::function<void(const std::string&)> m_onSubmitAddApp;
     
     std::string m_title;
     std::string m_url;

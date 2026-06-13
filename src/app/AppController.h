@@ -7,6 +7,10 @@
 #include <memory>
 #include <string>
 
+#ifdef _WIN32
+#include "platform/windows/WindowsAppBarManager.h"
+#endif
+
 namespace Qenba {
 
 struct AppState {
@@ -18,6 +22,11 @@ struct AppState {
     std::map<std::string, std::shared_ptr<WebTrack>> sidebarTracks;
     std::shared_ptr<WebTrack> activeSidebarTrack;
     std::string currentSidebarUrl;
+
+    bool isAppBarMode = false;
+#ifdef _WIN32
+    Platform::AppBarState appBarState;
+#endif
 };
 
 class AppController {

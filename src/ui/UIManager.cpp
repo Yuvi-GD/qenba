@@ -1,4 +1,5 @@
 #include "UIManager.h"
+#include "app/ConfigManager.h"
 #include <iostream>
 
 #ifdef _WIN32
@@ -11,6 +12,7 @@ static LRESULT CALLBACK QenbaWindowSubclass(HWND hWnd, UINT uMsg, WPARAM wParam,
     switch (uMsg) {
         case WM_NCHITTEST: {
             LRESULT hit = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+
             if (hit == HTCLIENT) {
                 POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
                 ScreenToClient(hWnd, &pt);
@@ -35,12 +37,48 @@ static LRESULT CALLBACK QenbaWindowSubclass(HWND hWnd, UINT uMsg, WPARAM wParam,
                 if (right) return HTRIGHT;
 
                 // Caption area for dragging (top 38px, but exclude the window controls on the right)
-                // Window controls are approximately 138px wide.
-                if (pt.y < 38 && pt.x < rect.right - 138) {
+                // Window controls are approximately 176px wide.
+                if (pt.y < 38 && pt.x < rect.right - 180) {
+                    DWORD style = GetWindowLong(hWnd, GWL_STYLE);
+                    // In AppBar mode (WS_POPUP without WS_CAPTION), dragging is disabled
+                    if ((style & WS_CAPTION) == 0) {
+                        return HTCLIENT;
+                    }
                     return HTCAPTION;
                 }
             }
             return hit;
+        }
+        case WM_NCCALCSIZE: {
+            if (wParam == TRUE) {
+                DWORD style = GetWindowLong(hWnd, GWL_STYLE);
+                // In AppBar mode (WS_POPUP without WS_CAPTION), eat the entire NC frame
+                if ((style & WS_CAPTION) == 0) {
+                    return 0;
+                }
+            }
+            break;
+        }
+        case WM_GETMINMAXINFO: {
+            DWORD style = GetWindowLong(hWnd, GWL_STYLE);
+            if ((style & WS_CAPTION) == 0) {
+                // AppBar mode: enforce minimum width so panel cannot shrink to 0
+                MINMAXINFO* mmi = reinterpret_cast<MINMAXINFO*>(lParam);
+                mmi->ptMinTrackSize.x = 440; // minimum 440px wide
+                return 0;
+            }
+            break;
+        }
+        case WM_LBUTTONDOWN: {
+            // Recapture OS keyboard focus from WebView2 child HWND.
+            // After the user clicks inside the WebView, OS focus moves to the WebView2 HWND.
+            // When they click back on the Slint UI (address bar, tabs, etc.),
+            // Slint gives the TextInput Slint-level focus, but OS keystrokes still go
+            // to the WebView. SetFocus() brings OS keyboard focus back to the main window
+            // so the Slint TextInput can actually receive keystrokes.
+            SetFocus(hWnd);
+            // Fall through to let Slint handle the click normally
+            return DefSubclassProc(hWnd, uMsg, wParam, lParam);
         }
         case WM_NCDESTROY:
             RemoveWindowSubclass(hWnd, QenbaWindowSubclass, uIdSubclass);
@@ -115,7 +153,20 @@ void UIManager::init() {
     });
 
     // --- SIDEBAR ---
-    app->on_sidebar_pin_current([this]() { if (m_sidebarPinCurrentCallback) m_sidebarPinCurrentCallback(); });
+    app->on_sidebar_settings([this]() { if (m_sidebarSettingsCallback) m_sidebarSettingsCallback(); });
+    app->on_sidebar_add_current_tab([this]() {
+        if (m_sidebarAddCurrentTabCallback) m_sidebarAddCurrentTabCallback();
+    });
+    app->on_sidebar_add_app_menu([this]() {
+        if (m_sidebarAddAppMenuCallback) m_sidebarAddAppMenuCallback();
+    });
+    app->on_notify_adding_app([this](bool adding) {
+        if (m_notifyAddingAppCallback) m_notifyAddingAppCallback(adding);
+    });
+    app->on_sidebar_submit_add_app([this](slint::SharedString url) {
+        if (m_sidebarSubmitAddAppCallback) m_sidebarSubmitAddAppCallback(std::string(url.data()));
+    });
+    
     app->on_sidebar_navigate([this](slint::SharedString url) {
         m_appWindow->set_sidebar_open(true);
         if (m_sidebarNavigateCallback) m_sidebarNavigateCallback(std::string(url.data()));
@@ -135,6 +186,9 @@ void UIManager::init() {
     app->on_copy_sidebar_url([this](slint::SharedString url) {
         if (m_copyToClipboardCallback) m_copyToClipboardCallback(std::string(url.data()));
     });
+    app->on_toggle_appbar_mode([this]() {
+        if (m_toggleAppbarModeCallback) m_toggleAppbarModeCallback();
+    });
     app->on_toggle_ai_chat([this]() {
         if (m_toggleAIChatCallback) m_toggleAIChatCallback();
     });
@@ -142,15 +196,13 @@ void UIManager::init() {
     app->on_sync_sidebar_geometry([this](float x, float y, float w, float h) {
         if (m_sidebarSyncGeometryCallback) m_sidebarSyncGeometryCallback(x, y, w, h);
     });
+    app->on_sync_appbar_width([this](float width) {
+        if (m_syncAppbarWidthCallback) m_syncAppbarWidthCallback(width);
+    });
 
     // --- TABS ---
     app->on_tab_clicked([this](int index) {
         m_appWindow->set_active_tab(index);
-        // Update URL bar immediately to this tab's stored URL
-        auto tabs = m_appWindow->get_tabs();
-        if (index >= 0 && index < tabs->row_count()) {
-            m_appWindow->set_url((*tabs->row_data(index)).url);
-        }
         if (m_tabClickedCallback) m_tabClickedCallback(index);
     });
 
@@ -163,7 +215,7 @@ void UIManager::init() {
         model->push_back(nt);
         m_appWindow->set_tabs(model);
         m_appWindow->set_active_tab(model->row_count() - 1);
-        m_appWindow->set_url("https://duckduckgo.com");
+        m_appWindow->set_url(slint::SharedString(""));
         if (m_newTabCallback) m_newTabCallback();
     });
 
@@ -203,14 +255,20 @@ void UIManager::setCloseTabCallback(std::function<void(int)> cb){ m_closeTabCall
 void UIManager::setRefreshCallback(std::function<void()> cb)   { m_refreshCallback = cb; }
 void UIManager::setNewTabCallback(std::function<void()> cb)    { m_newTabCallback = cb; }
 
-void UIManager::setSidebarSyncGeometryCallback(std::function<void(float, float, float, float)> cb) { m_sidebarSyncGeometryCallback = cb; }
-void UIManager::setSidebarPinCurrentCallback(std::function<void()> cb)                            { m_sidebarPinCurrentCallback = cb; }
+void UIManager::setSidebarSyncGeometryCallback(std::function<void(float, float, float, float)> cb) { m_sidebarSyncGeometryCallback = std::move(cb); }
+void UIManager::setSyncAppbarWidthCallback(std::function<void(float)> cb) { m_syncAppbarWidthCallback = std::move(cb); }
+void UIManager::setSidebarSettingsCallback(std::function<void()> cb) { m_sidebarSettingsCallback = std::move(cb); }
+void UIManager::setSidebarAddCurrentTabCallback(std::function<void()> cb) { m_sidebarAddCurrentTabCallback = std::move(cb); }
+void UIManager::setSidebarAddAppMenuCallback(std::function<void()> cb) { m_sidebarAddAppMenuCallback = std::move(cb); }
+void UIManager::setNotifyAddingAppCallback(std::function<void(bool)> cb) { m_notifyAddingAppCallback = std::move(cb); }
+void UIManager::setSidebarSubmitAddAppCallback(std::function<void(const std::string&)> cb) { m_sidebarSubmitAddAppCallback = cb; }
 void UIManager::setSidebarNavigateCallback(std::function<void(const std::string&)> cb)            { m_sidebarNavigateCallback = cb; }
 void UIManager::setSidebarContextMenuCallback(std::function<void(const std::string&)> cb)         { m_sidebarContextMenuCallback = cb; }
 void UIManager::setSidebarBackCallback(std::function<void()> cb)                                  { m_sidebarBackCallback = cb; }
 void UIManager::setSidebarRefreshCallback(std::function<void()> cb)                               { m_sidebarRefreshCallback = cb; }
 void UIManager::setSidebarCloseCallback(std::function<void()> cb)                                 { m_sidebarCloseCallback = cb; }
 void UIManager::setSidebarHideCallback(std::function<void()> cb)                                  { m_sidebarHideCallback = cb; }
+void UIManager::setToggleAppbarModeCallback(std::function<void()> cb)                             { m_toggleAppbarModeCallback = cb; }
 void UIManager::setCopyToClipboardCallback(std::function<void(const std::string&)> cb)            { m_copyToClipboardCallback = cb; }
 void UIManager::setToggleAIChatCallback(std::function<void()> cb)                                 { m_toggleAIChatCallback = cb; }
 
@@ -248,14 +306,28 @@ void UIManager::updateActiveTabState(int tabIndex, const std::string& title,
             model->push_back(i == tabIndex ? tab : *current->row_data(i));
         app->set_tabs(model);
 
+        // Build clean display URL for the address bar
         std::string displayUrl = url;
-        if (displayUrl.find("config/home.html") != std::string::npos) displayUrl = "";
-        else if (displayUrl.find("config/settings.html") != std::string::npos) displayUrl = "qenba://settings";
+        if (displayUrl.find("config/home.html") != std::string::npos) {
+            displayUrl = ""; // Home page shows blank address bar
+        } else if (displayUrl.find("config/settings.html") != std::string::npos) {
+            displayUrl = "qenba://settings";
+        } else if (displayUrl.find("config/add-app") != std::string::npos ||
+                   displayUrl.find("add-app.html") != std::string::npos) {
+            displayUrl = "";
+        } else if (displayUrl.starts_with("file:///")) {
+            displayUrl = "";
+        }
 
         // Sync main address bar if this is the active tab
         if (tabIndex == app->get_active_tab()) {
             if (!app->get_addr_focused()) {
-                app->set_url(slint::SharedString(displayUrl.c_str()));
+                // Only update if value actually changed — avoid resetting TextInput state
+                std::string currentUrl(app->get_url().data());
+                if (currentUrl != displayUrl) {
+                    std::cerr << "[URL] Setting addr bar: \"" << displayUrl << "\" (was: \"" << currentUrl << "\", editing=" << app->get_addr_focused() << ")" << std::endl;
+                    app->set_url(slint::SharedString(displayUrl.c_str()));
+                }
             }
             app->set_is_secure(url.starts_with("https://") || url.starts_with("qenba://"));
             app->set_can_go_back(canBack);

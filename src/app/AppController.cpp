@@ -1,7 +1,7 @@
 #include "AppController.h"
 #include "utils/FaviconUtils.h"
 #include "ConfigManager.h"
-#include "utils/Platform.h"
+#include "platform/Platform.h"
 #include <iostream>
 
 namespace Qenba {
@@ -154,11 +154,11 @@ std::shared_ptr<WebTrack> AppController::createTrack(HWND parent) {
         });
     });
 
-    /* track->setOnInteraction([this]() {
+    track->setOnInteraction([this]() {
         slint::invoke_from_event_loop([this]() {
             m_ui.getAppWindow()->invoke_clear_addr_focus();
         });
-    }); */
+    });
 
     return track;
 }
@@ -195,9 +195,11 @@ std::shared_ptr<WebTrack> AppController::getSidebarTrack(HWND parent, const std:
             }
         });
 
-        if (!domain.empty()) {
-            std::string svcUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
-            downloadFaviconAsync(svcUrl, [this, trackUrl](const std::wstring& path) {
+        if (!domain.empty() && domain.find("config/") == std::string::npos
+                            && domain.find("add-app") == std::string::npos) {
+            std::string googleUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
+            std::string directUrl = "https://" + domain + "/favicon.ico";
+            downloadFaviconWithFallback(googleUrl, directUrl, [this, trackUrl](const std::wstring& path) {
                 auto img = loadFaviconImage(path);
                 if (img.size().width == 0) return;
 
@@ -222,6 +224,16 @@ std::shared_ptr<WebTrack> AppController::getSidebarTrack(HWND parent, const std:
         }
     });
 
+    track->setOnSubmitAddApp([this](const std::string& url) {
+        slint::invoke_from_event_loop([this, url]() {
+            if (url == "CURRENT_TAB") {
+                m_ui.getAppWindow()->invoke_sidebar_add_current_tab();
+            } else {
+                m_ui.getAppWindow()->invoke_sidebar_submit_add_app(slint::SharedString(url));
+            }
+        });
+    });
+
     track->setVisible(false);
     track->navigate(url);
     m_state->sidebarTracks[url] = track;
@@ -242,8 +254,7 @@ void AppController::setupCallbacks() {
         slint::Image emptyImg;
         m_ui.updateActiveTabState(index, t->getTitle(), t->getUrl(),
                                 t->canGoBack(), t->canGoForward(), emptyImg);
-        // Force URL bar update and clear focus to ensure sync
-        m_ui.getAppWindow()->set_url(t->getUrl().c_str());
+        // Force focus release so URL shows up cleanly
         m_ui.getAppWindow()->invoke_clear_addr_focus();
     });
 
@@ -277,7 +288,6 @@ void AppController::setupCallbacks() {
         slint::Image emptyImg;
         m_ui.updateActiveTabState(m_state->activeIndex, t->getTitle(), t->getUrl(),
                                 t->canGoBack(), t->canGoForward(), emptyImg);
-        m_ui.getAppWindow()->set_url(t->getUrl().c_str());
     });
 
     m_ui.setUrlLoadCallback([this](const std::string& url) {
@@ -323,51 +333,138 @@ void AppController::setupCallbacks() {
             m_state->webTracks[m_state->activeIndex]->navigate("qenba://settings");
     });
 
-    m_ui.setSidebarPinCurrentCallback([this]() {
-        if (m_state->activeIndex >= (int)m_state->webTracks.size()) return;
-        auto& activeTrack = m_state->webTracks[m_state->activeIndex];
-        auto url = activeTrack->getUrl();
-        if (url.empty()) return;
-
-        auto& appWin = m_ui.getAppWindow();
-        slint::SharedString title = activeTrack->getTitle().c_str();
-        slint::Image favicon;
-        
-        auto tabs = appWin->get_tabs();
-        if (m_state->activeIndex < tabs->row_count()) {
-            favicon = tabs->row_data(m_state->activeIndex)->favicon;
+    m_ui.setSidebarAddCurrentTabCallback([this]() {
+        if (m_state->activeIndex >= 0 && m_state->activeIndex < (int)m_state->webTracks.size()) {
+            auto track = m_state->webTracks[m_state->activeIndex];
+            std::string url = track->getUrl();
+            std::string title = track->getTitle();
+            
+            if (url.empty() || url == "about:blank" || url.find("qenba://") == 0) return;
+            
+            std::string domain = url;
+            auto ps = domain.find("://");
+            if (ps != std::string::npos) domain = domain.substr(ps + 3);
+            auto sl = domain.find('/');
+            if (sl != std::string::npos) domain = domain.substr(0, sl);
+            std::string iconLetter = "W";
+            if (!domain.empty() && std::isalnum((unsigned char)domain[0])) {
+                iconLetter = std::string(1, (char)std::toupper((unsigned char)domain[0]));
+            }
+            
+            auto& appWin = m_ui.getAppWindow();
+            auto model = appWin->get_pinned_apps();
+            auto nm = std::make_shared<slint::VectorModel<PinnedApp>>();
+            bool alreadyPinned = false;
+            for (int i = 0; i < model->row_count(); ++i) {
+                auto item = *model->row_data(i);
+                if (std::string(item.url.data()) == url) { alreadyPinned = true; break; }
+                nm->push_back(item);
+            }
+            
+            if (!alreadyPinned) {
+                PinnedApp pa; pa.title = title.c_str(); pa.url = url.c_str(); pa.icon = iconLetter.c_str();
+                nm->push_back(pa);
+                appWin->set_pinned_apps(nm);
+                
+                auto config = ConfigManager::instance().getConfig();
+                PinnedAppConfig pc; pc.title = title; pc.url = url; pc.icon = iconLetter;
+                config.pinned_apps.push_back(pc);
+                ConfigManager::instance().setConfig(config);
+            }
+            
+            appWin->set_is_adding_app(false);
+            if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->setVisible(true);
+            appWin->set_sidebar_open(false);
+            if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->setVisible(false);
         }
+    });
 
+    m_ui.setSidebarAddAppMenuCallback([this]() {
+        auto& appWin = m_ui.getAppWindow();
+        bool isAdding = !appWin->get_is_adding_app();
+        appWin->set_is_adding_app(isAdding);
+        
+        if (isAdding) {
+            appWin->set_sidebar_open(true);
+            // Clear any stale title/favicon from previous panel
+            appWin->set_sidebar_title(slint::SharedString("Add Sidebar App"));
+            appWin->set_sidebar_url(slint::SharedString(""));
+            appWin->set_sidebar_favicon(slint::Image{});
+            if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->setVisible(false);
+            
+            // Switch to add-app HTML track
+            std::string addAppUrl = m_state->isAppBarMode ? "qenba://add-app?appbar=1" : "qenba://add-app";
+            m_state->currentSidebarUrl = addAppUrl;
+            auto newTrack = getSidebarTrack(m_state->parentHwnd, addAppUrl);
+            m_state->activeSidebarTrack = newTrack;
+            newTrack->navigate(addAppUrl);
+            newTrack->setVisible(true);
+        } else {
+            appWin->set_sidebar_open(false);
+            if (m_state->activeSidebarTrack) {
+                m_state->activeSidebarTrack->setVisible(false);
+                m_state->activeSidebarTrack.reset();
+                m_state->currentSidebarUrl = "";
+            }
+        }
+    });
+
+    m_ui.setNotifyAddingAppCallback([this](bool adding) {
+        if (!adding && m_state->activeSidebarTrack && m_state->activeSidebarTrack->getUrl().find("add-app") != std::string::npos) {
+            m_state->activeSidebarTrack->setVisible(false);
+            auto newTrack = getSidebarTrack(m_state->parentHwnd, m_state->currentSidebarUrl);
+            m_state->activeSidebarTrack = newTrack;
+            if (newTrack) newTrack->setVisible(true);
+        }
+    });
+
+    m_ui.setSidebarSubmitAddAppCallback([this](const std::string& inputUrl) {
+        std::string url = inputUrl;
+        if (url.find("://") == std::string::npos && !url.empty()) {
+            url = "https://" + url;
+        }
+        
+        auto& appWin = m_ui.getAppWindow();
         std::string d = url;
         auto ps = d.find("://"); if (ps != std::string::npos) d = d.substr(ps + 3);
         if (d.size() >= 4 && d.substr(0,4) == "www.") d = d.substr(4);
         auto sl = d.find('/'); if (sl != std::string::npos) d = d.substr(0, sl);
-
+        
         std::string iconLetter = "W";
-        if (!d.empty() && std::isalnum((unsigned char)d[0]))
-            iconLetter = std::string(1, (char)std::toupper((unsigned char)d[0]));
-
+        if (!d.empty() && std::isalnum((unsigned char)d[0])) iconLetter = std::string(1, (char)std::toupper((unsigned char)d[0]));
+        
         auto model = appWin->get_pinned_apps();
         auto nm = std::make_shared<slint::VectorModel<PinnedApp>>();
         bool alreadyPinned = false;
         for (int i = 0; i < model->row_count(); ++i) {
             auto item = *model->row_data(i);
-            if (std::string(item.url.data()) == url) { alreadyPinned = true; break; }
+            if (std::string(item.title.data()) == d || std::string(item.url.data()) == url) { alreadyPinned = true; }
             nm->push_back(item);
         }
-        if (alreadyPinned) return;
+        
+        if (!alreadyPinned && !url.empty() && url != "https://") {
+            PinnedApp pa; pa.title = d.c_str(); pa.url = url.c_str(); pa.icon = iconLetter.c_str();
+            nm->push_back(pa);
+            appWin->set_pinned_apps(nm);
+            
+            auto config = ConfigManager::instance().getConfig();
+            PinnedAppConfig pc; pc.title = d; pc.url = url; pc.icon = iconLetter;
+            config.pinned_apps.push_back(pc);
+            ConfigManager::instance().setConfig(config);
+        }
+        
+        appWin->set_is_adding_app(false);
+        appWin->set_sidebar_open(false);
+        if (m_state->activeSidebarTrack) m_state->activeSidebarTrack->setVisible(false);
+    });
 
-        PinnedApp pa; 
-        pa.title = title; pa.url = url.c_str(); pa.icon = iconLetter.c_str(); pa.favicon = favicon;
-        nm->push_back(pa);
-        appWin->set_pinned_apps(nm);
-
-        // Save to config
-        auto config = ConfigManager::instance().getConfig();
-        PinnedAppConfig pc;
-        pc.title = title; pc.url = url; pc.icon = iconLetter;
-        config.pinned_apps.push_back(pc);
-        ConfigManager::instance().setConfig(config);
+    m_ui.setSidebarSettingsCallback([this]() {
+        if (m_state->isAppBarMode) {
+            m_ui.getAppWindow()->invoke_app_toggled(slint::SharedString("qenba://settings"));
+        } else {
+            if (m_state->activeIndex < (int)m_state->webTracks.size())
+                m_state->webTracks[m_state->activeIndex]->navigate("qenba://settings");
+        }
     });
 
     m_ui.setSidebarContextMenuCallback([this](const std::string& url) {
@@ -432,6 +529,16 @@ void AppController::setupCallbacks() {
     m_ui.setSidebarNavigateCallback([this](const std::string& url) {
         if (url.empty() || !m_state->parentHwnd) return;
 
+        m_ui.getAppWindow()->set_is_adding_app(false);
+
+        if (m_state->activeSidebarTrack && m_state->currentSidebarUrl == url && m_ui.getAppWindow()->get_sidebar_open()) {
+            m_ui.getAppWindow()->set_sidebar_open(false);
+            m_state->activeSidebarTrack->setVisible(false);
+            m_state->activeSidebarTrack.reset();
+            m_state->currentSidebarUrl = "";
+            return;
+        }
+
         if (m_state->activeSidebarTrack && m_state->currentSidebarUrl != url)
             m_state->activeSidebarTrack->setVisible(false);
 
@@ -448,15 +555,34 @@ void AppController::setupCallbacks() {
 
         auto& appWin = m_ui.getAppWindow();
         auto cachedTitle = track->getTitle();
-        appWin->set_sidebar_title(slint::SharedString(cachedTitle.empty() ? domain.c_str() : cachedTitle.c_str()));
+
+        // Build a compact 1-2 char icon label from the domain for the favicon placeholder
+        std::string iconLabel = "?";
+        if (!domain.empty() && std::isalnum((unsigned char)domain[0])) {
+            iconLabel = std::string(1, (char)std::toupper((unsigned char)domain[0]));
+            // Add second char if available and alphanumeric
+            if (domain.size() > 1 && std::isalnum((unsigned char)domain[1]))
+                iconLabel += (char)std::tolower((unsigned char)domain[1]);
+        }
+
+        appWin->set_sidebar_title(slint::SharedString(cachedTitle.empty() ? iconLabel.c_str() : cachedTitle.c_str()));
         appWin->set_sidebar_url(slint::SharedString(domain.c_str()));
         appWin->set_sidebar_favicon(slint::Image{});
 
-        std::string svcUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
-        std::wstring cPath = faviconCachePath(svcUrl);
+        // Try Google favicon service first, then direct favicon.ico
+        std::string googleUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
+        std::string directUrl = "https://" + domain + "/favicon.ico";
+        // Check cache first (synchronously)
+        std::wstring cPath = faviconCachePath(googleUrl);
         if (GetFileAttributesW(cPath.c_str()) != INVALID_FILE_ATTRIBUTES) {
             auto img = loadFaviconImage(cPath);
             if (img.size().width > 0) appWin->set_sidebar_favicon(img);
+        } else {
+            downloadFaviconWithFallback(googleUrl, directUrl, [this, url](const std::wstring& path) {
+                if (m_state->currentSidebarUrl != url) return;
+                auto img = loadFaviconImage(path);
+                if (img.size().width > 0) m_ui.getAppWindow()->set_sidebar_favicon(img);
+            });
         }
     });
 
@@ -487,6 +613,39 @@ void AppController::setupCallbacks() {
         else if (config.ai_engine == "gemini") targetUrl = "https://gemini.google.com/";
         
         m_ui.getAppWindow()->invoke_app_toggled(slint::SharedString(targetUrl));
+    });
+
+    m_ui.setToggleAppbarModeCallback([this]() {
+        m_state->isAppBarMode = !m_state->isAppBarMode;
+        m_ui.getAppWindow()->set_is_appbar_mode(m_state->isAppBarMode);
+
+#ifdef _WIN32
+        if (!m_state->parentHwnd) return;
+
+        if (m_state->isAppBarMode) {
+            // Hide main webview
+            if (m_state->activeIndex >= 0 && m_state->activeIndex < (int)m_state->webTracks.size()) {
+                m_state->webTracks[m_state->activeIndex]->setVisible(false);
+            }
+
+            int width = m_state->appBarState.currentAppBarWidth > 0 ? m_state->appBarState.currentAppBarWidth : 400;
+            Platform::WindowsAppBarManager::RegisterAppBar(m_state->parentHwnd, width, m_state->appBarState);
+        } else {
+            Platform::WindowsAppBarManager::UnregisterAppBar(m_state->parentHwnd, m_state->appBarState);
+
+            // Show main webview again
+            if (m_state->activeIndex >= 0 && m_state->activeIndex < (int)m_state->webTracks.size()) {
+                m_state->webTracks[m_state->activeIndex]->setVisible(true);
+            }
+        }
+#endif
+    });
+
+    m_ui.setSyncAppbarWidthCallback([this](float width) {
+#ifdef _WIN32
+        if (!m_state->isAppBarMode || !m_state->parentHwnd) return;
+        Platform::WindowsAppBarManager::SetAppBarWidth(m_state->parentHwnd, width, m_state->appBarState);
+#endif
     });
 
     m_ui.setSyncGeometryCallback([this](float x, float y, float w, float h) {

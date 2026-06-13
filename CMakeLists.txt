@@ -35,7 +35,8 @@ add_executable(qenba WIN32
     src/app/AppController.cpp
     src/app/ConfigManager.cpp
     src/utils/FaviconUtils.cpp
-    src/utils/Platform.cpp
+    src/platform/Platform.cpp
+    src/platform/windows/WindowsAppBarManager.cpp
 )
 
 # Compile Slint UI file

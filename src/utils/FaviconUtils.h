@@ -10,6 +10,8 @@ void initFaviconCache();
 std::wstring faviconCachePath(const std::string& url);
 void downloadFaviconAsync(const std::string& faviconUrl,
                           std::function<void(const std::wstring&)> onLoaded);
+void downloadFaviconWithFallback(const std::string& primaryUrl, const std::string& fallbackUrl,
+                                  std::function<void(const std::wstring&)> onLoaded);
 slint::Image loadFaviconImage(const std::wstring& path);
 
 } // namespace Qenba

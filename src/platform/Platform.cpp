@@ -7,8 +7,9 @@
 #endif
 
 namespace Qenba {
+namespace Platform {
 
-void Platform::setClipboardText(const std::string& text) {
+void setClipboardText(const std::string& text) {
 #ifdef _WIN32
     if (!OpenClipboard(nullptr)) return;
     EmptyClipboard();
@@ -29,7 +30,7 @@ void Platform::setClipboardText(const std::string& text) {
 #endif
 }
 
-void Platform::initDarkTheme() {
+void initDarkTheme() {
 #ifdef _WIN32
     static bool initialized = false;
     if (initialized) return;
@@ -54,4 +55,5 @@ void Platform::initDarkTheme() {
 #endif
 }
 
+} // namespace Platform
 } // namespace Qenba

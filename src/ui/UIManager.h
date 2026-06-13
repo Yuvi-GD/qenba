@@ -34,13 +34,19 @@ public:
 
     // Callbacks for sidebar
     void setSidebarSyncGeometryCallback(std::function<void(float, float, float, float)> cb);
-    void setSidebarPinCurrentCallback(std::function<void()> cb);
+    void setSyncAppbarWidthCallback(std::function<void(float)> cb);
+    void setSidebarSettingsCallback(std::function<void()> cb);
+    void setSidebarAddCurrentTabCallback(std::function<void()> cb);
+    void setSidebarAddAppMenuCallback(std::function<void()> cb);
+    void setNotifyAddingAppCallback(std::function<void(bool)> cb);
+    void setSidebarSubmitAddAppCallback(std::function<void(const std::string&)> cb);
     void setSidebarNavigateCallback(std::function<void(const std::string&)> cb);
     void setSidebarContextMenuCallback(std::function<void(const std::string&)> cb);
     void setSidebarBackCallback(std::function<void()> cb);
     void setSidebarRefreshCallback(std::function<void()> cb);
     void setSidebarCloseCallback(std::function<void()> cb);
     void setSidebarHideCallback(std::function<void()> cb);
+    void setToggleAppbarModeCallback(std::function<void()> cb);
     void setCopyToClipboardCallback(std::function<void(const std::string&)> cb);
     void setToggleAIChatCallback(std::function<void()> cb);
 
@@ -70,13 +76,19 @@ private:
     std::function<void()> m_newTabCallback;
 
     std::function<void(float, float, float, float)> m_sidebarSyncGeometryCallback;
-    std::function<void()> m_sidebarPinCurrentCallback;
+    std::function<void(float)> m_syncAppbarWidthCallback;
+    std::function<void()> m_sidebarSettingsCallback;
+    std::function<void()> m_sidebarAddCurrentTabCallback;
+    std::function<void()> m_sidebarAddAppMenuCallback;
+    std::function<void(bool)> m_notifyAddingAppCallback;
+    std::function<void(const std::string&)> m_sidebarSubmitAddAppCallback;
     std::function<void(const std::string&)> m_sidebarNavigateCallback;
     std::function<void(const std::string&)> m_sidebarContextMenuCallback;
     std::function<void()> m_sidebarBackCallback;
     std::function<void()> m_sidebarRefreshCallback;
     std::function<void()> m_sidebarCloseCallback;
     std::function<void()> m_sidebarHideCallback;
+    std::function<void()> m_toggleAppbarModeCallback;
     std::function<void(const std::string&)> m_copyToClipboardCallback;
     std::function<void()> m_toggleAIChatCallback;
 };

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Sidebar App</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #141414;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #0d1b2a 0%, #1a2a3a 50%, #0f2035 100%);
+            padding: 28px 20px 20px;
+            border-bottom: 1px solid rgba(77, 171, 247, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -40px;
+            right: -40px;
+            width: 160px;
+            height: 160px;
+            background: radial-gradient(circle, rgba(77, 171, 247, 0.12) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-icon {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #1e4a7a, #4dabf7);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+            box-shadow: 0 4px 16px rgba(77, 171, 247, 0.3);
+        }
+
+        .hero-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: #fff;
+            stroke-width: 1.8px;
+            fill: none;
+        }
+
+        .hero h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+            letter-spacing: -0.3px;
+        }
+
+        .hero p {
+            font-size: 12px;
+            color: #8ab4d4;
+            line-height: 1.5;
+            font-weight: 400;
+        }
+
+        .content {
+            flex: 1;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Add Current Tab button — hidden in appbar mode */
+        .add-current-section {
+            display: none;
+        }
+        .add-current-section.visible {
+            display: block;
+        }
+
+        .add-current-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #1e3a5c, #1a4a78);
+            border: 1px solid rgba(77, 171, 247, 0.3);
+            border-radius: 10px;
+            padding: 13px 16px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: inherit;
+            text-align: left;
+        }
+
+        .add-current-btn:hover {
+            background: linear-gradient(135deg, #254a72, #2060a0);
+            border-color: rgba(77, 171, 247, 0.6);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(77, 171, 247, 0.2);
+        }
+
+        .add-current-btn:active {
+            transform: translateY(0);
+        }
+
+        .add-current-btn .btn-icon {
+            width: 32px;
+            height: 32px;
+            background: rgba(77, 171, 247, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .add-current-btn .btn-icon svg {
+            width: 16px;
+            height: 16px;
+            stroke: #4dabf7;
+            stroke-width: 1.8px;
+            fill: none;
+        }
+
+        .add-current-btn .btn-text {
+            flex: 1;
+        }
+
+        .add-current-btn .btn-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #e0e0e0;
+            margin-bottom: 1px;
+        }
+
+        .add-current-btn .btn-subtitle {
+            font-size: 11px;
+            color: #6b9abf;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #3a3a3a;
+            font-size: 11px;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #2a2a2a;
+        }
+
+        .divider span {
+            color: #555;
+            white-space: nowrap;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .url-section label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 8px;
+        }
+
+        .url-input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        .url-input-row input {
+            flex: 1;
+            background: #1e1e1e;
+            border: 1px solid #2a2a2a;
+            color: #e0e0e0;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            min-width: 0;
+        }
+
+        .url-input-row input:focus {
+            border-color: #4dabf7;
+            box-shadow: 0 0 0 3px rgba(77, 171, 247, 0.1);
+        }
+
+        .url-input-row input::placeholder {
+            color: #444;
+        }
+
+        .url-input-row button {
+            background: linear-gradient(135deg, #1e3a5c, #2060a0);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .url-input-row button:hover {
+            background: linear-gradient(135deg, #254a72, #2a70c0);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(77, 171, 247, 0.25);
+        }
+
+        .url-input-row button:active {
+            transform: translateY(0);
+        }
+
+        /* Suggested popular apps */
+        .suggestions-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin-bottom: 10px;
+        }
+
+        .suggestions-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .suggestion-chip {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            background: #1a1a1a;
+            border: 1px solid #252525;
+            border-radius: 10px;
+            padding: 10px 6px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-align: center;
+        }
+
+        .suggestion-chip:hover {
+            background: #232323;
+            border-color: #3a3a3a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .suggestion-chip:active {
+            transform: translateY(0);
+        }
+
+        .suggestion-chip .chip-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .suggestion-chip .chip-name {
+            font-size: 10px;
+            color: #888;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .feedback-msg {
+            display: none;
+            background: rgba(77, 171, 247, 0.1);
+            border: 1px solid rgba(77, 171, 247, 0.25);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 12px;
+            color: #4dabf7;
+            text-align: center;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .feedback-msg.visible { display: block; }
+        .feedback-msg.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.25);
+            color: #f87171;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <div class="hero-icon">
+            <svg viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        </div>
+        <h1>Add Sidebar App</h1>
+        <p>Pin any website as a quick-access sidebar app</p>
+    </div>
+
+    <div class="content">
+        <!-- Add Current Tab — hidden in AppBar/Sidebar mode -->
+        <div class="add-current-section" id="addCurrentSection">
+            <button class="add-current-btn" onclick="addCurrentTab()">
+                <div class="btn-icon">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="3" width="18" height="14" rx="2"/>
+                        <path d="M3 7h18"/>
+                        <path d="M8 12h8M12 10v4"/>
+                    </svg>
+                </div>
+                <div class="btn-text">
+                    <div class="btn-title">Add Current Tab</div>
+                    <div class="btn-subtitle">Pin the active page to your sidebar</div>
+                </div>
+            </button>
+        </div>
+
+        <div class="url-section">
+            <label>Enter URL</label>
+            <div class="url-input-row">
+                <input type="text" id="urlInput" placeholder="https://example.com" />
+                <button onclick="addUrl()">Add</button>
+            </div>
+        </div>
+
+        <div id="feedbackMsg" class="feedback-msg"></div>
+
+        <div>
+            <div class="suggestions-label">Popular Apps</div>
+            <div class="suggestions-grid" id="suggestionsGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        const suggestions = [
+            { name: 'YouTube',    url: 'https://youtube.com',     color: '#ff0000', letter: 'Y' },
+            { name: 'X',         url: 'https://x.com',            color: '#000',    letter: 'X' },
+            { name: 'Reddit',    url: 'https://reddit.com',        color: '#ff4500', letter: 'R' },
+            { name: 'WhatsApp',  url: 'https://web.whatsapp.com', color: '#25d366', letter: 'W' },
+            { name: 'Gmail',     url: 'https://mail.google.com',  color: '#ea4335', letter: 'G' },
+            { name: 'GitHub',    url: 'https://github.com',        color: '#333',    letter: 'G' },
+            { name: 'Notion',    url: 'https://notion.so',         color: '#111',    letter: 'N' },
+            { name: 'Spotify',   url: 'https://open.spotify.com', color: '#1db954', letter: 'S' },
+        ];
+
+        // Detect AppBar mode from query param
+        const params = new URLSearchParams(window.location.search);
+        const isAppBarMode = params.get('appbar') === '1';
+
+        if (!isAppBarMode) {
+            document.getElementById('addCurrentSection').classList.add('visible');
+        }
+
+        // Build suggestions grid
+        const grid = document.getElementById('suggestionsGrid');
+        suggestions.forEach(s => {
+            const chip = document.createElement('div');
+            chip.className = 'suggestion-chip';
+            chip.innerHTML = `
+                <div class="chip-icon" style="background:${s.color};">${s.letter}</div>
+                <div class="chip-name">${s.name}</div>
+            `;
+            chip.onclick = () => submitUrl(s.url);
+            grid.appendChild(chip);
+        });
+
+        // Focus input on load
+        window.addEventListener('load', () => {
+            setTimeout(() => document.getElementById('urlInput').focus(), 100);
+        });
+
+        function showFeedback(msg, isError = false) {
+            const el = document.getElementById('feedbackMsg');
+            el.textContent = msg;
+            el.className = 'feedback-msg visible' + (isError ? ' error' : '');
+            setTimeout(() => { el.className = 'feedback-msg'; }, 2500);
+        }
+
+        function submitUrl(url) {
+            if (!url || url === 'https://') {
+                showFeedback('Please enter a valid URL', true);
+                return;
+            }
+            if (window.submitAddApp) {
+                window.submitAddApp(url);
+            }
+        }
+
+        function addCurrentTab() {
+            if (window.submitAddApp) window.submitAddApp('CURRENT_TAB');
+        }
+
+        function addUrl() {
+            const url = document.getElementById('urlInput').value.trim();
+            if (!url || url === 'https://') {
+                showFeedback('Please enter a URL first', true);
+                return;
+            }
+            submitUrl(url);
+        }
+
+        document.getElementById('urlInput').addEventListener('keydown', e => {
+            if (e.key === 'Enter') addUrl();
+        });
+    </script>
+</body>
+</html>

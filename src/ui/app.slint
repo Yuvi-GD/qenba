@@ -128,7 +128,8 @@ export component AppWindow inherits Window {
     ];
     in-out property <int> active-tab: 0;
     in-out property <string> url: "https://duckduckgo.com";
-    out property <bool> addr-focused: addr.has-focus;
+    in-out property <bool> is-editing-url: false;
+    out property <bool> addr-focused: root.is-editing-url;
     in-out property <bool> is-secure: true;
     in-out property <[PinnedApp]> pinned-apps: [];
     in-out property <bool> sidebar-open: false;
@@ -137,8 +138,13 @@ export component AppWindow inherits Window {
     in-out property <string> active-sidebar-url: "";
     in-out property <bool> sidebar-overlay: false;
     in-out property <image> sidebar-favicon;
-    in-out property <length> sb-panel-w: 320px;
+    in-out property <length> sb-panel-w: 400px;
     in-out property <bool> is-resizing: false;
+    in-out property <bool> is-adding-app: false;
+    in-out property <bool> is-appbar-mode: false;
+
+    // Callbacks provided by C++
+    callback load-url(string);
     in-out property <bool> can-go-back: false;
     in-out property <bool> can-go-forward: false;
     in-out property <bool> show-home-button: true;
@@ -148,7 +154,6 @@ export component AppWindow inherits Window {
     callback maximize-window();
     callback window-move(length, length);
     callback window-resize(length, length);
-    callback load-url(string);
     callback go-back();
     callback go-forward();
     callback go-home();
@@ -166,8 +171,16 @@ export component AppWindow inherits Window {
     callback sidebar-refresh();
     callback sidebar-close();
     callback sidebar-context-menu(string);
-    callback sidebar-hide();
     callback copy-sidebar-url(string);
+    callback sidebar-add-current-tab();
+    callback sidebar-add-app-menu();
+    callback notify-adding-app(bool);
+    callback sidebar-settings();
+    callback sidebar-submit-add-app(string);
+    callback sidebar-hide();
+    callback toggle-appbar-mode();
+
+    // Timer logic in Slint for simple animations if needed
     callback toggle-ai-chat();
     callback app-toggled(string);
     callback sync-sidebar-geometry(length, length, length, length);
@@ -177,6 +190,7 @@ export component AppWindow inherits Window {
     }
 
     clear-addr-focus => {
+        root.is-editing-url = false;
         dummy_focus.focus();
     }
     
@@ -196,19 +210,46 @@ export component AppWindow inherits Window {
     property <length> area-y: webview-area.absolute-position.y;
     property <length> area-w: webview-area.width - 2px;
     property <length> area-h: webview-area.height - 2px;
+    property <bool> prev-appbar-open: false;
+    property <bool> prev-is-appbar-mode: false;
+    callback sync-appbar-width(length);
     Timer {
         interval: 16ms;
         running: true;
         triggered => {
             root.sync-geometry(root.area-x, root.area-y, root.area-w, root.area-h);
+            
+            // Sync AppBar width dynamically
+            if (root.is-appbar-mode != root.prev-is-appbar-mode) {
+                root.prev-is-appbar-mode = root.is-appbar-mode;
+                if (root.is-appbar-mode) {
+                    root.prev-appbar-open = root.sidebar-open;
+                    root.sync-appbar-width(root.sidebar-open ? max(100px, root.sb-panel-w + 44px) : 44px);
+                }
+            } else if (root.is-appbar-mode) {
+                if (root.sidebar-open != root.prev-appbar-open) {
+                    root.prev-appbar-open = root.sidebar-open;
+                    if (root.sidebar-open) {
+                        root.sync-appbar-width(max(100px, root.sb-panel-w + 44px));
+                    } else {
+                        root.sync-appbar-width(44px);
+                    }
+                } else if (root.sidebar-open) {
+                    root.sync-appbar-width(root.width);
+                    root.sb-panel-w = max(56px, root.width - 44px);
+                }
+            }
+
             if (root.sidebar-open) {
-                // Panel header = 44px, titlebar = 36px, navbar = 44px → y = 124px
-                // x starts 8px inside panel (past the grip)
+                // In normal mode: Panel header=44px, titlebar=36px, navbar=44px → y=124px
+                // In appbar mode: y=36px+44px=80px (Body is at y=36, header is 44px)
+                // x starts 8px inside panel (past the grip), 0px body padding
                 root.sync-sidebar-geometry(
-                    root.area-x + root.area-w + 10px,
-                    124px,
-                    root.sb-panel-w - 12px,
-                    root.height - 124px - 2px);
+                    root.is-appbar-mode ? 8px : root.area-x + root.area-w + 10px,
+                    root.is-appbar-mode ? 80px : 124px,
+                    root.is-appbar-mode ? root.width - 52px : root.sb-panel-w - 12px,
+                    root.height - (root.is-appbar-mode ? 80px : 124px) - 2px
+                );
             }
         }
     }
@@ -226,10 +267,12 @@ export component AppWindow inherits Window {
             width: 100%;
             height: 100%;
         }    // window drag handled by OS subclass
+        
         HorizontalLayout {
-            // Left side balanced to match the right side (132px) for perfect centering
+            visible: !root.is-appbar-mode || root.sidebar-open;
+            // Left side balanced to match the right side (176px) for perfect centering
             Rectangle {
-                width: 132px;
+                width: 176px;
                 HorizontalLayout {
                     padding-left: 14px;
                     Text {
@@ -247,6 +290,7 @@ export component AppWindow inherits Window {
             HorizontalLayout {
                 horizontal-stretch: 1;
                 alignment: center;
+                visible: !root.is-appbar-mode;
                 
                 // Container for Title + Favicon
                 HorizontalLayout {
@@ -278,9 +322,36 @@ export component AppWindow inherits Window {
             }
 
             HorizontalLayout {
-                width: 132px;
+                width: root.is-appbar-mode ? 88px : 176px;
                 height: 36px;
+                alignment: end;
+                
+                // AppBar Mode Toggle
                 Rectangle {
+                    width: 44px;
+                    height: 36px;
+                    background: wtgl.has-hover ? #252525 : transparent;
+                    animate background { duration: 80ms; }
+                    Path {
+                        x: 14px;
+                        y: 10px;
+                        width: 16px;
+                        height: 16px;
+                        stroke: wtgl.has-hover ? #ddd : #666;
+                        stroke-width: 1.5px;
+                        fill: transparent;
+                        // Right double arrow or left double arrow
+                        commands: root.is-appbar-mode ? "M 8 2 L 2 8 L 8 14 M 14 2 L 8 8 L 14 14" : "M 6 2 L 12 8 L 6 14 M 0 2 L 6 8 L 0 14";
+                    }
+
+                    wtgl := TouchArea {
+                        clicked => {
+                            root.toggle-appbar-mode();
+                        }
+                    }
+                }
+
+                if !root.is-appbar-mode: Rectangle {
                     width: 44px;
                     height: 36px;
                     background: wmin.has-hover ? #252525 : transparent;
@@ -300,7 +371,7 @@ export component AppWindow inherits Window {
                     }
                 }
 
-                Rectangle {
+                if !root.is-appbar-mode: Rectangle {
                     width: 44px;
                     height: 36px;
                     background: wmax.has-hover ? #252525 : transparent;
@@ -345,14 +416,38 @@ export component AppWindow inherits Window {
                 }
             }
         }
+
+        // Minimal Toggle Button when collapsed:
+        if (root.is-appbar-mode && !root.sidebar-open): Rectangle {
+            x: 0;
+            width: 44px;
+            height: 36px;
+            background: wtgl_col.has-hover ? #252525 : transparent;
+            animate background { duration: 80ms; }
+            Path {
+                x: 14px;
+                y: 10px;
+                width: 16px;
+                height: 16px;
+                stroke: wtgl_col.has-hover ? #ddd : #666;
+                stroke-width: 1.5px;
+                fill: transparent;
+                // Double left arrow to exit AppBar mode
+                commands: "M 10 2 L 4 8 L 10 14 M 16 2 L 10 8 L 16 14";
+            }
+            wtgl_col := TouchArea {
+                clicked => { root.toggle-appbar-mode(); }
+            }
+        }
     }
 
-    // ══ NAVIGATION BAR   44px ════════════════════════════════════════════
+    // ══ NAV BAR   44px ════════════════════════════════════════════════════
     Rectangle {
+        visible: !root.is-appbar-mode;
         y: 36px;
         height: 44px;
         width: root.width;
-        background: #1e1e1e;
+        background: #1c1c1c;
         Rectangle {
             y: 43px;
             height: 1px;
@@ -429,24 +524,14 @@ export component AppWindow inherits Window {
                             color: #d4d4d4;
                             vertical-alignment: center;
                             single-line: true;
-                            text: root.url;
+                            text <=> root.url;
                             edited => {
-                                root.url = self.text;
+                                root.is-editing-url = true;
                             }
                             accepted => {
+                                root.is-editing-url = false;
                                 root.load-url(self.text);
                                 dummy_focus.focus();
-                            }
-                        }
-
-                        // Mask click to ensure focus is always grabbed
-                        TouchArea {
-                            width: 100%;
-                            height: 100%;
-                            pointer-event(evt) => {
-                                if (evt.kind == PointerEventKind.down) {
-                                    addr.focus();
-                                }
                             }
                         }
                     }
@@ -491,45 +576,6 @@ export component AppWindow inherits Window {
                 dl_ta := TouchArea { }
             }
 
-            Rectangle {
-                width: 30px;
-                height: 30px;
-                border-radius: 6px;
-                background: pt.has-hover ? #2d2d2d : transparent;
-                Rectangle {
-                    x: 5px;
-                    y: 13px;
-                    width: 4px;
-                    height: 4px;
-                    border-radius: 2px;
-                    background: pt.has-hover ? #e0e0e0 : #888;
-                }
-
-                Rectangle {
-                    x: 13px;
-                    y: 13px;
-                    width: 4px;
-                    height: 4px;
-                    border-radius: 2px;
-                    background: pt.has-hover ? #e0e0e0 : #888;
-                }
-
-                Rectangle {
-                    x: 21px;
-                    y: 13px;
-                    width: 4px;
-                    height: 4px;
-                    border-radius: 2px;
-                    background: pt.has-hover ? #e0e0e0 : #888;
-                }
-
-                pt := TouchArea {
-                    clicked => {
-                        root.show-profile();
-                    }
-                }
-            }
-
             // AI Chat Icon
             Rectangle {
                 width: 30px;
@@ -559,19 +605,20 @@ export component AppWindow inherits Window {
 
     // ══ BODY ═════════════════════════════════════════════════════════════
     Rectangle {
-        y: 80px;
+        y: root.is-appbar-mode ? 36px : 80px;
         width: root.width;
-        height: max(0px, root.height - 80px);
+        height: root.is-appbar-mode ? max(0px, root.height - 36px) : max(0px, root.height - 80px);
         background: #141414;
         HorizontalLayout {
-            padding-left: 2px;
-            padding-right: 5px;
-            padding-bottom: 2px;
+            padding-left: root.is-appbar-mode ? 0px : 2px;
+            padding-right: root.is-appbar-mode ? 0px : 5px;
+            padding-bottom: root.is-appbar-mode ? 0px : 2px;
             spacing: 0px;
 
             // ── Left tab bar  42→180px animated ──────────────────────────
             tab-bar := Rectangle {
-                width: tab-touch.has-hover ? 180px : 42px;
+                visible: !root.is-appbar-mode;
+                width: root.is-appbar-mode ? 0px : (tab-touch.has-hover ? 180px : 42px);
                 height: 100%;
                 background: #1a1a1a;
                 clip: true;
@@ -721,17 +768,20 @@ export component AppWindow inherits Window {
 
             // ── Main webview slot ──────────────────────────────────────
             webview-area := Rectangle {
-                horizontal-stretch: 1;
+                visible: !root.is-appbar-mode;
+                horizontal-stretch: root.is-appbar-mode ? 0 : 1;
+                max-width: root.is-appbar-mode ? 0px : 100000px;
                 background: #141414;
             }
 
             // ── Side panel (from Sidebar.slint) ───────────────────────
             if root.sidebar-open: SidePanel {
-                width: root.sb-panel-w;
+                width: root.is-appbar-mode ? root.width - 44px : root.sb-panel-w;
                 panel-title: root.sidebar-title;
                 panel-domain: root.sidebar-url;
                 panel-favicon: root.sidebar-favicon;
                 is-resizing: root.is-resizing;
+                is-adding-app: root.is-adding-app;
                 on-back => {
                     root.sidebar-back();
                 }
@@ -739,11 +789,21 @@ export component AppWindow inherits Window {
                     root.sidebar-refresh();
                 }
                 on-close => {
+                    if (root.is-adding-app) {
+                        root.is-adding-app = false;
+                        root.notify-adding-app(false);
+                    }
                     root.sidebar-close();
                     root.active-sidebar-url = "";
                 }
                 on-copy-url(url) => {
                     root.copy-sidebar-url(url);
+                }
+                on-add-current-tab => {
+                    root.sidebar-add-current-tab();
+                }
+                on-submit-add-app(url) => {
+                    root.sidebar-submit-add-app(url);
                 }
                 // resize-start: down sets is-resizing=true, up sets it false
                 on-resize-start => {
@@ -760,8 +820,14 @@ export component AppWindow inherits Window {
             // ── Right sidebar bar (from Sidebar.slint) ────────────────
             SidebarBar {
                 apps: root.pinned-apps;
-                sidebar-open: root.sidebar-open;
+                sidebar-open: root.sidebar-open || root.is-appbar-mode;
                 active-url: root.active-sidebar-url;
+                is-appbar-mode: root.is-appbar-mode;
+                minimize-window => { root.minimize-window(); }
+                close-window => { root.close-window(); }
+                toggle-appbar-mode => {
+                    root.toggle-appbar-mode();
+                }
                 search-toggled => {
                     if (root.sidebar-open && root.active-sidebar-url == "search") {
                         root.sidebar-close();
@@ -779,8 +845,14 @@ export component AppWindow inherits Window {
                 app-context-menu(url) => {
                     root.sidebar-context-menu(url);
                 }
-                pin-current => {
-                    root.sidebar-pin-current();
+                add-app-menu => {
+                    root.sidebar-add-app-menu();
+                }
+                sidebar-settings => {
+                    root.sidebar-settings();
+                }
+                toggle-ai-chat => {
+                    root.toggle-ai-chat();
                 }
             }
         }
