@@ -130,26 +130,78 @@ std::shared_ptr<WebTrack> AppController::createTrack(HWND parent) {
             if (sl != std::string::npos) domain = domain.substr(0, sl);
             
             if (!domain.empty() && domain.find("config/") == std::string::npos) {
-                faviconServiceUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
+                std::string googleUrl = "https://www.google.com/s2/favicons?domain=" + domain + "&sz=32";
+                std::string directUrl = "https://" + domain + "/favicon.ico";
+                
+                WebTrack* trackPtr = raw;
+                downloadFaviconWithFallback(googleUrl, directUrl, [this, trackPtr](const std::wstring& path) {
+                    auto img = loadFaviconImage(path);
+                    if (img.size().width == 0) return;
+                    
+                    auto& appWin = m_ui.getAppWindow();
+                    auto current = appWin->get_tabs();
+                    
+                    int currentIdx = -1;
+                    for (int i = 0; i < (int)m_state->webTracks.size(); ++i) {
+                        if (m_state->webTracks[i].get() == trackPtr) {
+                            currentIdx = i; break;
+                        }
+                    }
+                    if (currentIdx == -1 || currentIdx >= current->row_count()) return;
+                    
+                    auto tab = *current->row_data(currentIdx);
+                    tab.favicon = img;
+                    
+                    auto model = std::make_shared<slint::VectorModel<TabData>>();
+                    for (int i = 0; i < current->row_count(); ++i)
+                        model->push_back(i == currentIdx ? tab : *current->row_data(i));
+                    
+                    appWin->set_tabs(model);
+                });
+                return;
             }
         }
 
-        if (faviconServiceUrl.empty()) return;
+        if (faviconServiceUrl.empty()) {
+            // Explicitly clear the favicon in the UI for internal pages or when no favicon is available
+            auto& appWin = m_ui.getAppWindow();
+            auto current = appWin->get_tabs();
+            if (idx >= 0 && idx < current->row_count()) {
+                auto tab = *current->row_data(idx);
+                if (tab.favicon.size().width > 0) {
+                    tab.favicon = slint::Image();
+                    auto model = std::make_shared<slint::VectorModel<TabData>>();
+                    for (int i = 0; i < current->row_count(); ++i)
+                        model->push_back(i == idx ? tab : *current->row_data(i));
+                    appWin->set_tabs(model);
+                }
+            }
+            return;
+        }
 
-        downloadFaviconAsync(faviconServiceUrl, [this, idx](const std::wstring& path) {
+        WebTrack* trackPtr = raw;
+        downloadFaviconWithFallback(faviconServiceUrl, "", [this, trackPtr](const std::wstring& path) {
             auto img = loadFaviconImage(path);
             if (img.size().width == 0) return;
             
             auto& appWin = m_ui.getAppWindow();
             auto current = appWin->get_tabs();
-            if (idx >= current->row_count()) return;
             
-            auto tab = *current->row_data(idx);
+            int currentIdx = -1;
+            for (int i = 0; i < (int)m_state->webTracks.size(); ++i) {
+                if (m_state->webTracks[i].get() == trackPtr) {
+                    currentIdx = i; break;
+                }
+            }
+            if (currentIdx == -1 || currentIdx >= current->row_count()) return;
+            
+            auto tab = *current->row_data(currentIdx);
             tab.favicon = img;
             
             auto model = std::make_shared<slint::VectorModel<TabData>>();
             for (int i = 0; i < current->row_count(); ++i)
-                model->push_back(i == idx ? tab : *current->row_data(i));
+                model->push_back(i == currentIdx ? tab : *current->row_data(i));
+            
             appWin->set_tabs(model);
         });
     });
@@ -300,8 +352,13 @@ void AppController::setupCallbacks() {
                 if (hasDot && !hasSpace) {
                     targetUrl = "https://" + targetUrl;
                 } else {
-                    // Smart search via DuckDuckGo
-                    targetUrl = "https://duckduckgo.com/?q=" + url;
+                    // Use configured search engine
+                    auto& config = ConfigManager::instance().getConfig();
+                    std::string searchBase = "https://duckduckgo.com/?q=";
+                    if (config.search_engine == "google") searchBase = "https://www.google.com/search?q=";
+                    else if (config.search_engine == "bing") searchBase = "https://www.bing.com/search?q=";
+                    else if (config.search_engine == "brave") searchBase = "https://search.brave.com/search?q=";
+                    targetUrl = searchBase + url;
                 }
             }
             m_state->webTracks[m_state->activeIndex]->navigate(targetUrl);
@@ -451,6 +508,28 @@ void AppController::setupCallbacks() {
             PinnedAppConfig pc; pc.title = d; pc.url = url; pc.icon = iconLetter;
             config.pinned_apps.push_back(pc);
             ConfigManager::instance().setConfig(config);
+            
+            // Kick off an async load immediately for the newly added app
+            std::string googleUrl = "https://www.google.com/s2/favicons?domain=" + d + "&sz=32";
+            std::string directUrl = "https://" + d + "/favicon.ico";
+            std::string trackUrl = url;
+            downloadFaviconWithFallback(googleUrl, directUrl, [this, trackUrl](const std::wstring& path) {
+                auto img = loadFaviconImage(path);
+                if (img.size().width == 0) return;
+                auto& aw = m_ui.getAppWindow();
+                auto mod = aw->get_pinned_apps();
+                auto nn = std::make_shared<slint::VectorModel<PinnedApp>>();
+                bool fnd = false;
+                for (int i = 0; i < mod->row_count(); ++i) {
+                    auto item = *mod->row_data(i);
+                    if (std::string(item.url.data()) == trackUrl) {
+                        item.favicon = img;
+                        fnd = true;
+                    }
+                    nn->push_back(item);
+                }
+                if (fnd) aw->set_pinned_apps(nn);
+            });
         }
         
         appWin->set_is_adding_app(false);
@@ -531,7 +610,17 @@ void AppController::setupCallbacks() {
 
         m_ui.getAppWindow()->set_is_adding_app(false);
 
-        if (m_state->activeSidebarTrack && m_state->currentSidebarUrl == url && m_ui.getAppWindow()->get_sidebar_open()) {
+        // Resolve qenba://search to the configured search engine homepage
+        std::string resolvedUrl = url;
+        if (url == "qenba://search") {
+            auto& config = ConfigManager::instance().getConfig();
+            resolvedUrl = "https://duckduckgo.com";
+            if (config.search_engine == "google") resolvedUrl = "https://www.google.com";
+            else if (config.search_engine == "bing") resolvedUrl = "https://www.bing.com";
+            else if (config.search_engine == "brave") resolvedUrl = "https://search.brave.com";
+        }
+
+        if (m_state->activeSidebarTrack && m_state->currentSidebarUrl == resolvedUrl && m_ui.getAppWindow()->get_sidebar_open()) {
             m_ui.getAppWindow()->set_sidebar_open(false);
             m_state->activeSidebarTrack->setVisible(false);
             m_state->activeSidebarTrack.reset();
@@ -539,15 +628,15 @@ void AppController::setupCallbacks() {
             return;
         }
 
-        if (m_state->activeSidebarTrack && m_state->currentSidebarUrl != url)
+        if (m_state->activeSidebarTrack && m_state->currentSidebarUrl != resolvedUrl)
             m_state->activeSidebarTrack->setVisible(false);
 
-        m_state->currentSidebarUrl = url;
-        auto track = getSidebarTrack(m_state->parentHwnd, url);
+        m_state->currentSidebarUrl = resolvedUrl;
+        auto track = getSidebarTrack(m_state->parentHwnd, resolvedUrl);
         track->setVisible(true);
         m_state->activeSidebarTrack = track;
 
-        std::string domain = url;
+        std::string domain = resolvedUrl;
         auto ps = domain.find("://");
         if (ps != std::string::npos) domain = domain.substr(ps + 3);
         auto sl = domain.find('/');
@@ -578,8 +667,8 @@ void AppController::setupCallbacks() {
             auto img = loadFaviconImage(cPath);
             if (img.size().width > 0) appWin->set_sidebar_favicon(img);
         } else {
-            downloadFaviconWithFallback(googleUrl, directUrl, [this, url](const std::wstring& path) {
-                if (m_state->currentSidebarUrl != url) return;
+            downloadFaviconWithFallback(googleUrl, directUrl, [this, resolvedUrl](const std::wstring& path) {
+                if (m_state->currentSidebarUrl != resolvedUrl) return;
                 auto img = loadFaviconImage(path);
                 if (img.size().width > 0) m_ui.getAppWindow()->set_sidebar_favicon(img);
             });

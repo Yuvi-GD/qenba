@@ -289,6 +289,7 @@
             body {
                 flex-direction: column;
             }
+
             .sidebar {
                 width: 100%;
                 height: auto;
@@ -299,27 +300,35 @@
                 padding: 0.8rem;
                 gap: 0.5rem;
             }
+
             .logo {
                 display: none;
             }
+
             .nav-item {
                 flex-shrink: 0;
             }
+
             .nav-version {
                 display: none;
             }
+
             .content {
                 padding: 1.5rem;
             }
+
             .setting-row {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 1rem;
             }
+
             .setting-info {
                 max-width: 100%;
             }
-            .select-box, .text-input {
+
+            .select-box,
+            .text-input {
                 width: 100%;
             }
         }
@@ -347,7 +356,7 @@
         <div class="nav-item" data-panel="system">
             <i class="ph ph-hard-drives"></i> System
         </div>
-        <div class="nav-version">Qenba Browser Base v1.0</div>
+        <div class="nav-version">Qenba Browser Base v1.1</div>
     </div>
 
     <!-- Content -->
@@ -489,12 +498,23 @@
                     <div class="toggle on" onclick="this.classList.toggle('on')"></div>
                 </div>
             </div>
+            <div class="sub-title">Updates</div>
+            <div class="settings-card glass">
+                <div class="setting-row">
+                    <div class="setting-info">
+                        <div class="setting-title">Check for updates</div>
+                        <div class="setting-desc" id="update-desc">Current version: V1.1.0</div>
+                    </div>
+                    <button class="select-box" id="btn-check-update" onclick="checkForUpdates()"
+                        style="padding: 0.5rem 1rem; text-align: center;">Check Now</button>
+                </div>
+            </div>
             <div class="sub-title">About</div>
             <div class="settings-card glass">
                 <div class="setting-row">
                     <div class="setting-info">
                         <div class="setting-title">Qenba Engine</div>
-                        <div class="setting-desc">Base v1.0 — Powered by WebView2 &amp; SDL3</div>
+                        <div class="setting-desc">Base v1.1.0 - Powered by WebView2 &amp; Slint</div>
                     </div>
                 </div>
             </div>
@@ -536,7 +556,7 @@
                     encodeURIComponent('Settings'),
                     encodeURIComponent('qenba://settings'),
                     true, true,
-                    encodeURIComponent('https://www.google.com/s2/favicons?domain=settings&sz=32') // placeholder icon
+                    encodeURIComponent('') // empty favicon to let Slint use 'S' initial
                 );
             }
 
@@ -548,6 +568,7 @@
                         let config = JSON.parse(cfgStr);
                         if (config.theme) document.getElementById('sel-theme').value = config.theme;
                         if (config.ai_engine) document.getElementById('sel-ai').value = config.ai_engine;
+                        if (config.search_engine) document.getElementById('sel-engine').value = config.search_engine;
                         if (config.home_url) document.getElementById('inp-homeurl').value = config.home_url;
                         if (config.show_home_button) document.getElementById('toggle-home').classList.add('on');
                         else document.getElementById('toggle-home').classList.remove('on');
@@ -557,6 +578,53 @@
                 });
             }
         });
+
+        // ── Update Checker ─────────────────────────────────────────────────────────
+        function compareVersions(v1, v2) {
+            const p1 = v1.replace(/^v/i, '').split('.').map(Number);
+            const p2 = v2.replace(/^v/i, '').split('.').map(Number);
+            for (let i = 0; i < Math.max(p1.length, p2.length); i++) {
+                const n1 = p1[i] || 0;
+                const n2 = p2[i] || 0;
+                if (n1 > n2) return 1;
+                if (n1 < n2) return -1;
+            }
+            return 0;
+        }
+
+        async function checkForUpdates() {
+            const btn = document.getElementById('btn-check-update');
+            const desc = document.getElementById('update-desc');
+            const currentVersion = "V1.1.0"; // Current version of the app
+
+            btn.textContent = "Checking...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('https://api.github.com/repos/Yuvi-GD/qenba/releases/latest');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+
+                const latestVersion = data.tag_name;
+
+                if (latestVersion && compareVersions(latestVersion, currentVersion) > 0) {
+                    desc.innerHTML = `Current version: ${currentVersion}<br><span style="color: var(--accent);">New version available: ${latestVersion}</span>`;
+                    btn.textContent = "Download Update";
+                    btn.onclick = () => {
+                        window.open(data.html_url, '_blank');
+                    };
+                    btn.disabled = false;
+                } else {
+                    desc.textContent = `Current version: ${currentVersion} (Up to date)`;
+                    btn.textContent = "Check Now";
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                desc.textContent = `Current version: ${currentVersion} (Failed to check)`;
+                btn.textContent = "Check Now";
+                btn.disabled = false;
+            }
+        }
     </script>
 </body>
 

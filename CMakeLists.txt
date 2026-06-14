@@ -27,6 +27,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(webview)
 
+# --- Windows resource file for exe icon ---
+if(WIN32)
+    configure_file("${CMAKE_SOURCE_DIR}/src/platform/windows/qenba.rc.in"
+                   "${CMAKE_BINARY_DIR}/qenba.rc" @ONLY)
+    set(WINDOWS_RESOURCE "${CMAKE_BINARY_DIR}/qenba.rc")
+endif()
+
 # --- Main Executable ---
 add_executable(qenba WIN32
     src/main.cpp
@@ -37,6 +44,7 @@ add_executable(qenba WIN32
     src/utils/FaviconUtils.cpp
     src/platform/Platform.cpp
     src/platform/windows/WindowsAppBarManager.cpp
+    ${WINDOWS_RESOURCE}
 )
 
 # Compile Slint UI file

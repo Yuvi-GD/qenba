@@ -17,6 +17,7 @@ struct AppConfig {
     std::string home_url = "qenba://home";
     std::string theme = "dark";
     std::string ai_engine = "duck";
+    std::string search_engine = "duckduckgo";
     bool show_home_button = true;
     bool dynamic_wallpaper = true;
     std::vector<PinnedAppConfig> pinned_apps;

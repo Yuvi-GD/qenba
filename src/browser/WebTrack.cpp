@@ -152,6 +152,15 @@ WebTrack::WebTrack(void* nativeWindowHandle) {
                     appCfg.ai_engine = s.substr(start + 1, end - start - 1);
                 }
             }
+        } else if (s.find("\"search_engine\"") != std::string::npos) {
+            size_t lastComma = s.find_last_of(',');
+            if (lastComma != std::string::npos) {
+                size_t start = s.find('"', lastComma);
+                size_t end = s.find('"', start + 1);
+                if (start != std::string::npos && end != std::string::npos) {
+                    appCfg.search_engine = s.substr(start + 1, end - start - 1);
+                }
+            }
         }
         
         config.setConfig(appCfg);
@@ -183,6 +192,7 @@ WebTrack::WebTrack(void* nativeWindowHandle) {
         ss << "{"
            << "\"theme\":\"" << appCfg.theme << "\","
            << "\"ai_engine\":\"" << appCfg.ai_engine << "\","
+           << "\"search_engine\":\"" << appCfg.search_engine << "\","
            << "\"home_url\":\"" << appCfg.home_url << "\","
            << "\"show_home_button\":" << (appCfg.show_home_button ? "true" : "false") << ","
            << "\"dynamic_wallpaper\":" << (appCfg.dynamic_wallpaper ? "true" : "false")

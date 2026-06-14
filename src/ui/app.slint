@@ -274,7 +274,18 @@ export component AppWindow inherits Window {
             Rectangle {
                 width: 176px;
                 HorizontalLayout {
-                    padding-left: 14px;
+                    padding-left: 12px;
+                    spacing: 7px;
+                    alignment: start;
+                    VerticalLayout {
+                        alignment: center;
+                        Image {
+                            source: @image-url("../../config/Qenba.png");
+                            width: 20px;
+                            height: 20px;
+                            image-fit: contain;
+                        }
+                    }
                     Text {
                         text: "Qenba";
                         font-weight: 700;
@@ -833,9 +844,9 @@ export component AppWindow inherits Window {
                         root.sidebar-close();
                         root.active-sidebar-url = "";
                     } else {
-                        root.sidebar-url = "duckduckgo.com";
+                        root.sidebar-url = "Search";
                         root.active-sidebar-url = "search";
-                        root.sidebar-navigate("https://duckduckgo.com");
+                        root.sidebar-navigate("qenba://search");
                     }
                 }
                 // Connect the new exposed callback

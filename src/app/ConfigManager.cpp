@@ -66,6 +66,7 @@ void ConfigManager::load() {
     m_config.home_url = extractString("home_url", "qenba://home");
     m_config.theme = extractString("theme", "dark");
     m_config.ai_engine = extractString("ai_engine", "duck");
+    m_config.search_engine = extractString("search_engine", "duckduckgo");
     m_config.show_home_button = extractBool("show_home_button", true);
     m_config.dynamic_wallpaper = extractBool("dynamic_wallpaper", true);
 
@@ -117,6 +118,7 @@ void ConfigManager::save() {
     f << "  \"home_url\": \"" << m_config.home_url << "\",\n";
     f << "  \"theme\": \"" << m_config.theme << "\",\n";
     f << "  \"ai_engine\": \"" << m_config.ai_engine << "\",\n";
+    f << "  \"search_engine\": \"" << m_config.search_engine << "\",\n";
     f << "  \"show_home_button\": " << (m_config.show_home_button ? "true" : "false") << ",\n";
     f << "  \"dynamic_wallpaper\": " << (m_config.dynamic_wallpaper ? "true" : "false") << ",\n";
     

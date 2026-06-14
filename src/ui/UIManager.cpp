@@ -235,11 +235,32 @@ void UIManager::init() {
 void UIManager::show() { m_appWindow->show(); }
 void UIManager::run()  { slint::run_event_loop(); }
 
-void UIManager::setMainHwnd(HWND hwnd) { 
-    m_hwnd = hwnd; 
+void UIManager::setMainHwnd(HWND hwnd) {
+    m_hwnd = hwnd;
 #ifdef _WIN32
     if (m_hwnd) {
-        SetWindowSubclass(m_hwnd, QenbaWindowSubclass, 0, 0);
+        SetWindowSubclass(m_hwnd, QenbaWindowSubclass, 1, 0);
+
+        // Load the embedded icon from the executable resources with specific sizes
+        HICON hIconBig = (HICON)LoadImageA(GetModuleHandle(NULL), "IDI_ICON1", IMAGE_ICON, 32, 32, LR_DEFAULTCOLOR);
+        HICON hIconSmall = (HICON)LoadImageA(GetModuleHandle(NULL), "IDI_ICON1", IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+        
+        if (hIconBig) {
+            SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)hIconBig);
+            SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)hIconBig);
+        } else {
+            // Fallback
+            HICON fallback = LoadIconA(GetModuleHandle(NULL), "IDI_ICON1");
+            if (fallback) {
+                SendMessage(m_hwnd, WM_SETICON, ICON_BIG, (LPARAM)fallback);
+                SetClassLongPtr(m_hwnd, GCLP_HICON, (LONG_PTR)fallback);
+            }
+        }
+        
+        if (hIconSmall) {
+            SendMessage(m_hwnd, WM_SETICON, ICON_SMALL, (LPARAM)hIconSmall);
+            SetClassLongPtr(m_hwnd, GCLP_HICONSM, (LONG_PTR)hIconSmall);
+        }
     }
 #endif
 }

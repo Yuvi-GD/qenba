@@ -98,10 +98,10 @@
         .weather-widget {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px 20px;
+            gap: 8px;
+            padding: 8px 16px;
             border-radius: var(--radius-pill);
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 500;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
             cursor: pointer;
@@ -121,11 +121,35 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            height: 100%;
-            padding: 0 2rem;
+            justify-content: flex-start;
+            height: 100vh;
+            padding: 4rem 2rem 2rem;
             position: relative;
             z-index: 5;
+            overflow-y: auto;
+        }
+
+        /* Spacer to push clock area to vertical center when content is short */
+        .center-spacer {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: auto;
+            margin-bottom: auto;
+            width: 100%;
+        }
+
+        main::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        main::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        main::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 2px;
         }
 
         /* Clock */
@@ -213,6 +237,7 @@
             flex-wrap: wrap;
             gap: 2rem;
             max-width: 800px;
+            margin-top: 4rem;
         }
 
         .bookmark-item {
@@ -318,28 +343,28 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
-        /* Floating Controls (Bottom Right) */
+        /* Top-right Controls */
         .floating-controls {
             position: absolute;
-            bottom: 2rem;
-            right: 2rem;
+            top: 1.2rem;
+            right: 1.5rem;
             display: flex;
-            gap: 1rem;
+            gap: 0.6rem;
             z-index: 20;
         }
 
         .control-btn {
-            width: 48px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 1.1rem;
             color: var(--text-main);
             cursor: pointer;
             transition: var(--transition);
-            background: rgba(0, 0, 0, 0.4);
+            background: rgba(0, 0, 0, 0.35);
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.1);
         }
@@ -611,39 +636,40 @@
         <div class="weather-widget glass" id="weather-widget">
             <i class="ph ph-spinner-gap spin"></i> <span>Locating...</span>
         </div>
+        <!-- Top-right page controls -->
+        <div class="floating-controls">
+            <div class="control-btn" id="tasks-btn" title="Tasks &amp; Notes">
+                <i class="ph ph-list-checks"></i>
+            </div>
+            <div class="control-btn" id="settings-btn" title="Page Settings">
+                <i class="ph ph-gear"></i>
+            </div>
+        </div>
     </header>
 
     <main>
-        <div class="clock-container">
-            <div id="time">00:00</div>
-            <div id="date">Loading...</div>
-        </div>
+        <div class="center-spacer">
+            <div class="clock-container">
+                <div id="time">00:00</div>
+                <div id="date">Loading...</div>
+            </div>
 
-        <div class="search-wrapper">
-            <form id="search-form">
-                <div class="search-box">
-                    <i class="ph ph-magnifying-glass" id="search-icon"></i>
-                    <input type="text" id="search-input" placeholder="Search the web or type a URL..."
-                        autocomplete="off" autofocus>
-                </div>
-            </form>
-        </div>
+            <div class="search-wrapper">
+                <form id="search-form">
+                    <div class="search-box">
+                        <i class="ph ph-magnifying-glass" id="search-icon"></i>
+                        <input type="text" id="search-input" placeholder="Search the web or type a URL..."
+                            autocomplete="off" autofocus>
+                    </div>
+                </form>
+            </div>
 
-        <!-- App Bookmarks using High-Res Icons -->
-        <div class="bookmark-container" id="bookmarks-container">
-            <!-- Populated via JS -->
+            <!-- App Bookmarks -->
+            <div class="bookmark-container" id="bookmarks-container">
+                <!-- Populated via JS -->
+            </div>
         </div>
     </main>
-
-    <!-- Floating Actions for Tasks & Settings -->
-    <div class="floating-controls">
-        <div class="control-btn" id="tasks-btn" title="Tasks & Notes">
-            <i class="ph ph-list-checks"></i>
-        </div>
-        <div class="control-btn" id="settings-btn" title="Page Settings">
-            <i class="ph ph-gear"></i>
-        </div>
-    </div>
 
     <!-- Right Side Panel for Tasks -->
     <div class="side-panel" id="side-panel">
@@ -1074,7 +1100,7 @@
                     encodeURIComponent('New Tab'),
                     encodeURIComponent('qenba://home'),
                     false, false,
-                    encodeURIComponent('https://www.google.com/s2/favicons?domain=home&sz=32') // placeholder home icon
+                    encodeURIComponent('') // empty favicon to let Slint use 'N' initial
                 );
             }
 

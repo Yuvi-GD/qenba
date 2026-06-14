@@ -1,0 +1,4 @@
+// Windows resource file - embeds the application icon into the EXE
+#include <windows.h>
+
+IDI_ICON1 ICON "@CMAKE_SOURCE_DIR@/config/Qenba.ico"
